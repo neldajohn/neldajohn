@@ -11,5 +11,5 @@ I'm a Neurobiology scholar interested in:
 <p> .... and their applications in the neuro community.</p>
 
 ### More:
-I write a weekly blog at: <a href="google.com" target = "_blank"> www.neldiaries.com</a>
+I write a weekly blog at: <a href="https://www.neldiaries.com" target = "_blank"> www.neldiaries.com</a>
 Feel free to contact me at: <a href="nelda.ijohn@gmail.com" target = "_blank"> nelda.ijohn@gmail.com</a>
