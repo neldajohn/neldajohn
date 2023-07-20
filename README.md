@@ -8,4 +8,4 @@ I'm a Neurobiology scholar interested in:
 -- 🤖 Artificial intelligence 
 .... and their applications in the neuro community.
 
-Feel free to contact me at: ![nelda.ijohn@gmailcom](nelda.ijohn@gmail.com)
+Feel free to contact me at: <a href="nelda.ijohn@gmail.com" target = "_blank"> nelda.ijohn@gmail.com</a>
