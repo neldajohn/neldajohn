@@ -1,15 +1,25 @@
-## Hello 🌚
+# Hello 🌚
 
-I'm Nelda. Welcome to my Github Profile😄. 
+Hi, I'm **Nelda**. Welcome to my little corner of GitHub 😄
 
-### About Me:
-I'm a Neurobiology scholar interested in: 
-- 💻 Computer science, 
-- 🦾 Interactive media, and 
-- 🤖 Artificial intelligence 
+## About Me
 
-<p> .... and their applications in the neuro community.</p>
+I'm curious about pretty much anything that lets me **make, experiment, and learn**.
 
-### More:
-I write a weekly blog at: <a href="https://www.neldiaries.com" target = "_blank">nexusnarratives.com</a>
-Feel free to contact me at: <a href="nelda.ijohn@gmail.com" target = "_blank"> nelda.ijohn@gmail.com</a>
+These days, you'll mostly find me:
+
+- 💻 Vibe coding
+- 🤖 Playing around with AI
+- 🧠 Exploring neuroscience
+- 🎨 Experimenting with interactive media
+- 🛠️ Building random things because I thought, *"I wonder if I could..."*
+
+I'm not quite sure what I'm building half the time — but that's part of the fun.
+
+## More
+
+I also write about things I'm thinking about, learning, and obsessing over on my blog:
+
+✍️ [neldajohn.substack.com](https://neldajohn.substack.com/)
+
+Thanks for stopping by 🌚
