@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fffaf3;
+  --foreground: #2a1d14;
+  --mezani-terracotta: #c1440e;
+  --mezani-terracotta-dark: #9c360a;
+  --mezani-gold: #e8a628;
+  --mezani-forest: #1f5f4a;
+  --mezani-forest-dark: #143f31;
+  --mezani-cream: #fffaf3;
+  --mezani-sand: #f6ead9;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-terracotta: var(--mezani-terracotta);
+  --color-terracotta-dark: var(--mezani-terracotta-dark);
+  --color-gold: var(--mezani-gold);
+  --color-forest: var(--mezani-forest);
+  --color-forest-dark: var(--mezani-forest-dark);
+  --color-cream: var(--mezani-cream);
+  --color-sand: var(--mezani-sand);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
