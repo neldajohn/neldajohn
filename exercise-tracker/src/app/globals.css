@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdf3f8;
+  --foreground: #3b2334;
+  --brand-pink: #ec4899;
+  --brand-pink-dark: #be185d;
+  --brand-grey: #6b7280;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-quicksand);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-quicksand), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 8% 8%, rgba(236, 72, 153, 0.10) 0, transparent 40%),
+    radial-gradient(circle at 92% 15%, rgba(107, 114, 128, 0.10) 0, transparent 45%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: #fbcfe8;
+  color: #831843;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #fce7f3;
+}
+::-webkit-scrollbar-thumb {
+  background: #f9a8d4;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ec4899;
+}
+
+/* Scoped inside @layer components so Tailwind utility classes (e.g. a one-off
+   bg-gradient-to-br override on a .card element) win the cascade over these
+   defaults, instead of these unlayered rules beating layered utilities. */
+@layer components {
+  .card {
+    background: #ffffff;
+    border: 1px solid #f3d4e4;
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(157, 23, 77, 0.04), 0 6px 20px -12px rgba(157, 23, 77, 0.18);
+  }
+
+  .input {
+    border: 1px solid #f0c9dc;
+    border-radius: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    background: #fffafc;
+    color: #3b2334;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus {
+    border-color: var(--brand-pink);
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    color: white;
+    border-radius: 0.65rem;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 14px -4px rgba(219, 39, 119, 0.45);
+    transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 6px 18px -4px rgba(219, 39, 119, 0.55);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.65rem;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: background 0.15s;
+  }
+  .btn-secondary:hover {
+    background: #e5e7eb;
+  }
+
+  .btn-ghost-pink {
+    background: #fce7f3;
+    color: #9d174d;
+    border-radius: 0.65rem;
+    padding: 0.4rem 0.85rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: background 0.15s;
+  }
+  .btn-ghost-pink:hover {
+    background: #fbcfe8;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+}
