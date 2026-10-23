@@ -4,7 +4,7 @@ import { create } from 'zustand';
 /** Pointer-based drag and drop: works on HTML and SVG alike, unlike native DnD. */
 export type DragItem =
   | { kind: 'fact'; factId: string; value: number; label: string; unit?: string }
-  | { kind: 'value'; value: number; label: string; unit?: string };
+  | { kind: 'value'; value: number; label: string; unit?: string; answerId?: string };
 
 interface DragState {
   item: DragItem | null;
@@ -28,6 +28,7 @@ function targetAt(x: number, y: number): string | null {
 
 export function beginDrag(e: RPointerEvent, item: DragItem) {
   if (e.button !== 0) return;
+  e.preventDefault(); // no text selection while dragging
   const sx = e.clientX;
   const sy = e.clientY;
   let active = false;
