@@ -154,6 +154,8 @@ export const useSitting = create<State>((set, get) => ({
     if (!s) return;
     const runs = s.runs.slice();
     if (runs[s.index].stage === 'done') return;
+    const started = runs[s.index].clockStartedAt;
+    if (started) result = { ...result, timeSpentSec: Math.min(CONFIG.clocks[result.game], Math.round((Date.now() - started) / 1000)) };
     runs[s.index] = { ...runs[s.index], stage: 'done', result };
     get().log('game_submit', { score: result.score, timedOut: result.timedOut });
     const last = s.index >= s.games.length - 1;

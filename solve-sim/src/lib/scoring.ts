@@ -29,6 +29,11 @@ export function calmness(events: TelemetryEvent[], durationSec: number): { cpm: 
   return { cpm: Math.round(cpm), score: Math.max(0, 100 - over * 4) };
 }
 
+/** Seconds between the first and last event of a game. */
+export function durationOf(events: TelemetryEvent[]): number {
+  return events.length ? (events[events.length - 1].t_ms - events[0].t_ms) / 1000 : 0;
+}
+
 /** 100 when actual is within the budget, decaying as it overruns. */
 export function budgetScore(actualSec: number, budgetSec: number): number {
   if (actualSec <= budgetSec) return 100;

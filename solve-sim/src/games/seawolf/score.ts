@@ -1,5 +1,5 @@
 import { CONFIG } from '../../config';
-import { budgetScore, calmness, combine, mean, pct } from '../../lib/scoring';
+import { budgetScore, calmness, combine, durationOf, mean, pct } from '../../lib/scoring';
 import type { GameResult, TelemetryEvent } from '../../lib/types';
 import type { Evaluation, Scenario } from './model';
 
@@ -36,7 +36,7 @@ export function scoreSeaWolf(sc: Scenario, outcomes: SiteOutcome[], events: Tele
   const locks = mean(outcomes.map((o) => lockQuality(sc, o)));
   const timeAlloc = mean(outcomes.map((o) => budgetScore(o.seconds, CONFIG.seaWolf.siteBudgetSec)));
   const totalSec = outcomes.reduce((a, o) => a + o.seconds, 0);
-  const calm = calmness(events, totalSec || 1).score;
+  const calm = calmness(events, durationOf(events) || 1).score;
   const completion = pct(outcomes.length, nSites);
   const process = Math.round(0.45 * sortAcc + 0.15 * locks + 0.15 * timeAlloc + 0.1 * calm + 0.15 * completion);
   const metrics = { sortingAccuracy: Math.round(sortAcc), lockQuality: Math.round(locks), timeAllocation: Math.round(timeAlloc), calmness: Math.round(calm), completion: Math.round(completion) };
