@@ -38,7 +38,7 @@ export function SittingHost() {
     case 'redrock':
       return <RedRock key={key} seed={seed} />;
     case 'seawolf':
-      return <SeaWolf key={key} seed={seed} variant={sitting.settings.seaWolfMode} />;
+      return <SeaWolf key={key} seed={seed} variant={sitting.settings.seaWolfMode} hard={sitting.settings.seaWolfHard ?? false} />;
     case 'sflIsland':
       return <Island key={key} seed={seed} />;
     case 'sflClassic':

@@ -23,8 +23,8 @@ import { scoreSeaWolf, type SiteOutcome } from './score';
 
 const STEPS = ['Lock characteristics', 'Sort the queue', 'Build prospect pool', 'Pick final 3'];
 
-export function SeaWolf({ seed, variant }: { seed: string; variant: 'default' | 'alt' }) {
-  const scenario = useMemo(() => generateSeaWolf(seed, variant), [seed, variant]);
+export function SeaWolf({ seed, variant, hard }: { seed: string; variant: 'default' | 'alt'; hard: boolean }) {
+  const scenario = useMemo(() => generateSeaWolf(seed, variant, hard), [seed, variant, hard]);
   const finishGame = useSitting((s) => s.finishGame);
   const cfg = CONFIG.seaWolf;
   const sites = scenario.sites.map((d) => d.site);
@@ -275,17 +275,10 @@ function SortStep({ scenario, microbe, index, total, calls, nextSite, onCall }: 
       {nextSite ? (
         <Panel title="Next site (partial preview)">
           <div className="text-sm font-semibold text-slate-700">{nextSite.name}</div>
-          <ul className="mt-2 space-y-1 text-sm text-slate-600">
-            {nextSite.ranges.map((r, k) => (
-              <li key={k}>
-                {scenario.attrNames[k]}: {k === 0 ? `${r[0]}–${r[1]}` : <span className="text-slate-300">hidden</span>}
-              </li>
-            ))}
-            <li>Desired: {scenario.traitNames[nextSite.desired]}</li>
-            <li>
-              Undesired: <span className="text-slate-300">hidden</span>
-            </li>
-          </ul>
+          <div className="mt-2 text-sm text-slate-600">
+            <Pill tone="green">Desired</Pill> {scenario.traitNames[nextSite.desired]}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">Only one characteristic of the next site is visible. Its ranges and undesired trait stay hidden until you get there.</p>
         </Panel>
       ) : (
         <Panel title="Next site">

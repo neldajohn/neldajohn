@@ -65,6 +65,19 @@ export const CONFIG = {
     /** Share of sites where a 100% trio is reachable. */
     solvableRate: 0.6,
     siteBudgetSec: 9 * 60,
+    /** Harder generation; every site still has a reachable 100% trio. */
+    hard: {
+      rangeWidth: 2,
+      edgeChance: 0.6,
+      /** Chance a random microbe that rolled the site's desired trait keeps it. */
+      desiredKeep: 0.2,
+      /** Near-miss decoys added to the initial-pool population. */
+      populationDecoys: 8,
+      /** Share of free offer slots filled with near-miss decoys. */
+      offerDecoyShare: 0.6,
+      /** Upper bound on distinct 100% trios reachable at a site. */
+      maxPerfectTrios: 2,
+    },
   },
 
   sflClassic: { priorities: 4, decisions: 12, perDecisionSec: 90 },

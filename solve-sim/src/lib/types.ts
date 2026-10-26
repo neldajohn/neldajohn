@@ -37,6 +37,8 @@ export interface GameResult {
 export interface Settings {
   tutorialQuirk: boolean;
   seaWolfMode: 'default' | 'alt';
+  /** Harder Sea Wolf generation (still always solvable). */
+  seaWolfHard: boolean;
   legacyEcosystem: boolean;
 }
 

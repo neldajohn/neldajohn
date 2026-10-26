@@ -67,7 +67,7 @@ export function scoreSeaWolf(sc: Scenario, outcomes: SiteOutcome[], events: Tele
     ...siteLines,
     line('process', 0.45, 'Sorting accuracy', sortAcc,
       outcomes.length ? `${outcomes.reduce((a, o) => a + o.calls.filter((c, k) => c === o.truth[k]).length, 0)} of ${outcomes.reduce((a, o) => a + o.truth.length, 0)} sorting calls right.${missorts.length ? ' Missed: ' + listSome(missorts.map((m) => `site ${m.site} ${name(m.id ?? '')} → should be ${m.t}`)) : ''}` : 'No sorting done.',
-      'Rule: "Current" if at least 2 of 3 attributes sit in this site\'s ranges and it lacks the undesired trait; otherwise "Next" if it fits the next site\'s preview; otherwise "Return".'),
+      'Rule: "Current" if at least 2 of 3 attributes sit in this site\'s ranges and it lacks the undesired trait; otherwise "Next" if it carries the next site\'s desired trait (the one trait the preview shows); otherwise "Return".'),
     line('process', 0.15, 'Lock choice', locks,
       `${Math.round(locks)}% of your locks were scarce characteristics (edge ranges 1–3 / 8–10, or the desired trait).`,
       'Lock the hardest things to find — an edge range or the desired trait. Easy middle ranges fill themselves.'),

@@ -87,9 +87,13 @@ export function fits(m: Microbe, site: Site): boolean {
 
 export type SortCall = 'current' | 'next' | 'return';
 
+/**
+ * Practice sorting rule. Only one characteristic of the next site is shown (its desired trait),
+ * so "next" means: not a fit here, but carries the next site's desired trait.
+ */
 export function correctCall(m: Microbe, sites: Site[], idx: number): SortCall {
   if (fits(m, sites[idx])) return 'current';
-  if (idx < sites.length - 1 && fits(m, sites[idx + 1])) return 'next';
+  if (idx < sites.length - 1 && m.traits.includes(sites[idx + 1].desired)) return 'next';
   return 'return';
 }
 
@@ -125,7 +129,9 @@ export function initialPool(data: SiteData, locks: string[], size = CONFIG.seaWo
 /** Offer rounds: reserve microbes, with non-planted slots replaced by microbes the player routed here. */
 export function buildOffers(data: SiteData, routedIn: Microbe[], exclude: Set<string>): Microbe[][] {
   const { offerRounds, offerSize } = CONFIG.seaWolf;
-  const incoming = routedIn.filter((m) => !exclude.has(m.id));
+  const fresh = routedIn.filter((m) => !exclude.has(m.id));
+  // A planted microbe the player routed here always makes it into an offer round.
+  const incoming = [...fresh.filter((m) => data.planted.includes(m.id)), ...fresh.filter((m) => !data.planted.includes(m.id))];
   const rounds: Microbe[][] = [];
   let ri = 0;
   for (let r = 0; r < offerRounds; r++) {
@@ -162,20 +168,47 @@ interface Ctx {
   per: number;
   used: Set<string>;
   counter: { n: number };
+  hard: boolean;
+  /** Desired traits of every best-effort 'noDesired' site; stripping one must not add another. */
+  banned: number[];
 }
 
 function newMicrobe(ctx: Ctx, attrs: number[], traits: number[]): Microbe {
   return { id: `m${ctx.counter.n++}`, name: microbeName(ctx.rng, ctx.used), attrs, traits };
 }
 
-function randomMicrobe(ctx: Ctx, site: Site, bias: number): Microbe {
+function randomMicrobe(ctx: Ctx, site: Site, bias: number, forceDesired = false): Microbe {
   const { rng } = ctx;
   const attrs = site.ranges.map(([lo, hi]) => {
     if (rng.chance(bias)) return rng.int(Math.max(1, lo - 1), Math.min(10, hi + 1));
     return rng.int(1, 10);
   });
-  const traits = Array.from({ length: ctx.traitPool }, (_, i) => i);
-  return newMicrobe(ctx, attrs, rng.sample(traits, ctx.per).sort());
+  const all = Array.from({ length: ctx.traitPool }, (_, i) => i);
+  let traits = rng.sample(all, ctx.per).sort();
+  if (forceDesired && !traits.includes(site.desired)) traits = [site.desired, ...traits.slice(1)].sort();
+  // Hard mode: the desired trait is scarce.
+  else if (!forceDesired && ctx.hard && traits.includes(site.desired) && !rng.chance(CONFIG.seaWolf.hard.desiredKeep)) {
+    traits = neutralTraits(rng, ctx.traitPool, ctx.per, [site.desired]);
+  }
+  return newMicrobe(ctx, attrs, traits);
+}
+
+const outOfRange = (rng: Rng, [lo, hi]: Range) => rng.pick([...Array.from({ length: lo - 1 }, (_, i) => i + 1), ...Array.from({ length: 10 - hi }, (_, i) => hi + 1 + i)]);
+
+/** Hard-mode decoy: looks strong (most attributes in range) but one attribute sits far out and wrecks the average. */
+function nearMiss(ctx: Ctx, site: Site): Microbe {
+  const { rng } = ctx;
+  const bad = rng.int(0, site.ranges.length - 1);
+  const attrs = site.ranges.map(([lo, hi], k) => {
+    if (k !== bad) return rng.int(lo, hi);
+    return lo - 1 > 10 - hi ? rng.int(1, Math.max(1, lo - 3)) : rng.int(Math.min(10, hi + 3), 10);
+  });
+  const roll = rng.next();
+  const traits =
+    roll < 0.25 ? [site.desired, ...neutralTraits(rng, ctx.traitPool, ctx.per - 1, [site.desired, site.undesired])].sort() // tempting: has the desired trait
+      : roll < 0.55 ? [site.undesired, ...neutralTraits(rng, ctx.traitPool, ctx.per - 1, [site.desired, site.undesired])].sort() // great numbers, banned trait
+        : neutralTraits(rng, ctx.traitPool, ctx.per, [site.desired]);
+  return newMicrobe(ctx, attrs, traits);
 }
 
 /** Enforce a best-effort site's constraint so 100% stays unreachable. */
@@ -183,12 +216,9 @@ function constrain(m: Microbe, site: Site, ctx: Ctx): void {
   const c = site.constraint;
   if (!c) return;
   if (c.kind === 'noDesired' && m.traits.includes(site.desired)) {
-    m.traits = neutralTraits(ctx.rng, ctx.traitPool, ctx.per, [site.desired, ...m.traits.filter((t) => t !== site.desired)]).slice(0, 1);
-    while (m.traits.length < ctx.per) {
-      const extra = neutralTraits(ctx.rng, ctx.traitPool, 1, [site.desired, ...m.traits]);
-      if (!extra.length) break;
-      m.traits = [...m.traits, ...extra].sort();
-    }
+    const avoid = [site.desired, ...ctx.banned];
+    const keep = m.traits.filter((t) => !avoid.includes(t));
+    m.traits = [...keep, ...neutralTraits(ctx.rng, ctx.traitPool, ctx.per - keep.length, [...avoid, ...keep])].sort();
   }
   if (c.kind === 'edge') {
     const [lo, hi] = site.ranges[c.attr];
@@ -199,6 +229,43 @@ function constrain(m: Microbe, site: Site, ctx: Ctx): void {
 }
 
 function plantTrio(ctx: Ctx, site: Site): Microbe[] {
+  return ctx.hard ? plantHardTrio(ctx, site) : plantEasyTrio(ctx, site);
+}
+
+/**
+ * Hard trio: no member looks perfect on its own. Microbe 0 (it goes into the sorting queue) fits the
+ * site by the sorting rule; the other two each have an attribute out of range. Only one carries the
+ * desired trait, and it is never microbe 0.
+ */
+function plantHardTrio(ctx: Ctx, site: Site): Microbe[] {
+  const { rng } = ctx;
+  const n = site.ranges.length;
+  const need = Math.ceil((2 * n) / 3);
+  for (;;) {
+    const inSet = new Set(rng.sample(Array.from({ length: n }, (_, k) => k), need));
+    const cols = site.ranges.map(([lo, hi], k) => {
+      for (let t = 0; t < 200; t++) {
+        const a = inSet.has(k) ? rng.int(lo, hi) : outOfRange(rng, [lo, hi]);
+        const target = rng.int(lo * 3, hi * 3);
+        const b = rng.int(1, 10);
+        const c = target - a - b;
+        if (c >= 1 && c <= 10) return [a, b, c];
+      }
+      return null;
+    });
+    if (cols.some((c) => !c)) continue;
+    const attrsOf = (i: number) => cols.map((c) => c![i]);
+    const outCount = (i: number) => attrsOf(i).filter((v, k) => !inRange(v, site.ranges[k])).length;
+    if (outCount(1) === 0 || outCount(2) === 0) continue;
+    const avoid = [site.desired, site.undesired];
+    const carrier = rng.int(1, 2);
+    return [0, 1, 2].map((i) =>
+      newMicrobe(ctx, attrsOf(i), i === carrier ? [site.desired, ...neutralTraits(rng, ctx.traitPool, ctx.per - 1, avoid)].sort() : neutralTraits(rng, ctx.traitPool, ctx.per, avoid)),
+    );
+  }
+}
+
+function plantEasyTrio(ctx: Ctx, site: Site): Microbe[] {
   const { rng } = ctx;
   const cols = site.ranges.map(([lo, hi]) => {
     for (;;) {
@@ -216,10 +283,11 @@ function plantTrio(ctx: Ctx, site: Site): Microbe[] {
   });
 }
 
-function makeSite(rng: Rng, idx: number, name: string, nAttr: number, traitPool: number, solvable: boolean): Site {
-  const w = CONFIG.seaWolf.rangeWidth;
+function makeSite(rng: Rng, idx: number, name: string, nAttr: number, traitPool: number, solvable: boolean, hard: boolean): Site {
+  const w = hard ? CONFIG.seaWolf.hard.rangeWidth : CONFIG.seaWolf.rangeWidth;
+  const edge = hard ? CONFIG.seaWolf.hard.edgeChance : 0.3;
   const ranges: Range[] = Array.from({ length: nAttr }, () => {
-    const lo = rng.chance(0.3) ? rng.pick([1, 11 - w]) : rng.int(2, 10 - w);
+    const lo = rng.chance(edge) ? rng.pick([1, 11 - w]) : rng.int(2, 10 - w);
     return [lo, lo + w - 1] as Range;
   });
   const [desired, undesired] = rng.sample(Array.from({ length: traitPool }, (_, i) => i), 2);
@@ -232,27 +300,36 @@ function makeSite(rng: Rng, idx: number, name: string, nAttr: number, traitPool:
   return site;
 }
 
-export function generateSeaWolf(seed: string, variant: 'default' | 'alt' = CONFIG.seaWolf.mode): Scenario {
-  const rng = makeRng(`${seed}::seawolf`);
+export function generateSeaWolf(seed: string, variant: 'default' | 'alt' = CONFIG.seaWolf.mode, hard = false): Scenario {
+  const rng = makeRng(`${seed}::seawolf${hard ? '-hard' : ''}`);
   const v = CONFIG.seaWolf.variants[variant];
   const cfg = CONFIG.seaWolf;
   const attrNames = ATTR_NAMES.slice(0, v.attributes);
   const traitNames = TRAIT_NAMES.slice(0, v.traitPool);
-  const ctx: Ctx = { rng, nAttr: v.attributes, traitPool: v.traitPool, per: v.traitsPerMicrobe, used: new Set(), counter: { n: 0 } };
+  const ctx: Ctx = { rng, nAttr: v.attributes, traitPool: v.traitPool, per: v.traitsPerMicrobe, used: new Set(), counter: { n: 0 }, hard, banned: [] };
 
-  // Guarantee a mix: at least one solvable and (with 3+ sites) at least one best-effort.
-  const flags = Array.from({ length: cfg.sites }, () => rng.chance(cfg.solvableRate));
+  // Standard: a mix of solvable and best-effort sites. Hard: every site solvable, but well hidden.
+  const flags = Array.from({ length: cfg.sites }, () => hard || rng.chance(cfg.solvableRate));
   if (!flags.some(Boolean)) flags[rng.int(0, cfg.sites - 1)] = true;
-  if (cfg.sites >= 3 && flags.every(Boolean)) flags[rng.int(0, cfg.sites - 1)] = false;
+  if (!hard && cfg.sites >= 3 && flags.every(Boolean)) flags[rng.int(0, cfg.sites - 1)] = false;
 
   const names = rng.sample(SITE_NAMES, cfg.sites);
-  const sites = flags.map((s, i) => makeSite(rng, i, names[i], v.attributes, v.traitPool, s));
+  const sites = flags.map((s, i) => makeSite(rng, i, names[i], v.attributes, v.traitPool, s, hard));
+  const queuePlanted: (Microbe | null)[] = sites.map(() => null);
 
-  const data: SiteData[] = sites.map((site) => {
+  const data: SiteData[] = sites.map((site, si) => {
     const population = Array.from({ length: 24 }, () => randomMicrobe(ctx, site, 0.45));
-    const reserve = Array.from({ length: cfg.offerRounds * cfg.offerSize }, () => randomMicrobe(ctx, site, 0.4));
+    const reserve = Array.from({ length: cfg.offerRounds * cfg.offerSize }, () => (hard && rng.chance(cfg.hard.offerDecoyShare) ? nearMiss(ctx, site) : randomMicrobe(ctx, site, 0.4)));
     let planted: string[] = [];
-    if (site.solvable) {
+    if (hard) {
+      // Decoys crowd the initial pool; planted microbes hide in the sorting queue and two offer rounds.
+      for (let k = 0; k < cfg.hard.populationDecoys; k++) population[rng.int(0, population.length - 1)] = nearMiss(ctx, site);
+      const trio = plantTrio(ctx, site);
+      planted = trio.map((m) => m.id);
+      queuePlanted[si] = trio[0];
+      const rounds = rng.sample(Array.from({ length: cfg.offerRounds }, (_, r) => r), 2);
+      [trio[1], trio[2]].forEach((m, k) => (reserve[rounds[k] * cfg.offerSize + rng.int(0, cfg.offerSize - 1)] = m));
+    } else if (site.solvable) {
       const trio = plantTrio(ctx, site);
       planted = trio.map((m) => m.id);
       // One planted microbe per offer round 1–3, in a random slot.
@@ -266,20 +343,77 @@ export function generateSeaWolf(seed: string, variant: 'default' | 'alt' = CONFI
     const next = sites[i + 1];
     d.queue = Array.from({ length: cfg.queueSize }, (_, q) => {
       const target = q % 3 === 1 && next ? next : d.site;
-      return randomMicrobe(ctx, target, q % 3 === 2 ? 0.1 : 0.85);
+      // Microbes meant for the next site carry its desired trait — the one thing the preview shows.
+      return randomMicrobe(ctx, target, q % 3 === 2 ? 0.1 : 0.85, target === next);
     });
+    if (hard) {
+      // Swap a few fits for decoys, then hide the planted microbe somewhere in the queue.
+      for (let k = 0; k < 3; k++) d.queue[rng.int(0, d.queue.length - 1)] = nearMiss(ctx, d.site);
+      d.queue[rng.int(0, d.queue.length - 1)] = queuePlanted[i]!;
+    }
     d.queue = rng.shuffle(d.queue);
   });
 
   // Apply best-effort constraints to everything reachable at each site. Queue microbes are reachable
   // from two sites, so repeat until no pass changes anything.
+  ctx.banned = sites.flatMap((s) => (s.constraint?.kind === 'noDesired' ? [s.desired] : []));
   const reachable = (i: number) => [...data[i].population, ...data[i].queue, ...data[i].reserve, ...(i > 0 ? data[i - 1].queue : [])];
   for (let pass = 0; pass < 20; pass++) {
     const before = JSON.stringify(data.map((d) => [d.queue, d.population, d.reserve]));
     data.forEach((d, i) => reachable(i).forEach((m) => constrain(m, d.site, ctx)));
     if (JSON.stringify(data.map((d) => [d.queue, d.population, d.reserve])) === before) break;
   }
+  if (hard) limitPerfectTrios(ctx, data, reachable);
   data.forEach((d, i) => (d.designedBest = bestTrio(reachable(i), d.site, attrNames, traitNames)));
 
   return { variant, attrNames, traitNames, sites: data };
+}
+
+/** All 100% trios in a pool, stopping once more than `cap` are found. */
+export function perfectTrios(pool: Microbe[], site: Site, cap = Infinity): string[][] {
+  // Allocation-free version of evaluate(...) === 100: compare attribute sums against 3×range.
+  const clean = pool.filter((m) => !m.traits.includes(site.undesired));
+  const des = clean.map((m) => m.traits.includes(site.desired));
+  const lo = site.ranges.map((r) => 3 * r[0]);
+  const hi = site.ranges.map((r) => 3 * r[1]);
+  const n = site.ranges.length;
+  const out: string[][] = [];
+  for (let i = 0; i < clean.length; i++)
+    for (let j = i + 1; j < clean.length; j++)
+      for (let k = j + 1; k < clean.length; k++) {
+        if (!des[i] && !des[j] && !des[k]) continue;
+        let ok = true;
+        for (let a = 0; a < n && ok; a++) {
+          const s = clean[i].attrs[a] + clean[j].attrs[a] + clean[k].attrs[a];
+          ok = s >= lo[a] && s <= hi[a];
+        }
+        if (!ok) continue;
+        out.push([clean[i].id, clean[j].id, clean[k].id]);
+        if (out.length > cap) return out;
+      }
+  return out;
+}
+
+/** Hard mode: replace stray microbes until each site has only a couple of 100% trios (the planted one included). */
+function limitPerfectTrios(ctx: Ctx, data: SiteData[], reachable: (i: number) => Microbe[]) {
+  const cap = CONFIG.seaWolf.hard.maxPerfectTrios;
+  const allPlanted = new Set(data.flatMap((d) => d.planted));
+  for (let pass = 0; pass < 200; pass++) {
+    let changed = false;
+    data.forEach((d, i) => {
+      const trios = perfectTrios(reachable(i), d.site, cap);
+      if (trios.length <= cap) return;
+      const victim = trios.flat().find((id) => !allPlanted.has(id));
+      if (!victim) return;
+      // Replace it in whichever list holds it, with a decoy for that list's own site.
+      data.forEach((owner) => {
+        for (const list of [owner.population, owner.queue, owner.reserve]) {
+          const at = list.findIndex((m) => m.id === victim);
+          if (at >= 0) list[at] = nearMiss(ctx, owner.site);
+        }
+      });
+      changed = true;
+    });
+    if (!changed) return;
+  }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bestTrio, buildOffers, correctCall, evaluate, generateSeaWolf, initialPool, type Microbe, type Site } from './model';
+import { CONFIG } from '../../config';
+import { bestTrio, buildOffers, correctCall, evaluate, fits, generateSeaWolf, initialPool, inRange, perfectTrios, type Microbe, type Site } from './model';
 
 const names = ['A', 'B', 'C'];
 const traits = ['t0', 't1', 't2', 't3'];
@@ -24,7 +25,9 @@ describe('Sea Wolf scorer', () => {
   it('classifies sorting calls', () => {
     const next: Site = { ...site, id: 'n', ranges: [[8, 10], [8, 10], [8, 10]], undesired: 3 };
     expect(correctCall(mk('x', [4, 8, 9], [2]), [site, next], 0)).toBe('current');
-    expect(correctCall(mk('y', [9, 9, 9], [2]), [site, next], 0)).toBe('next');
+    // Only the next site's desired trait is visible, so "next" = not a fit here but carries that trait.
+    expect(correctCall(mk('y', [9, 9, 9], [0]), [site, next], 0)).toBe('next');
+    expect(correctCall(mk('v', [9, 9, 9], [2]), [site, next], 0)).toBe('return');
     expect(correctCall(mk('z', [9, 9, 9], [3]), [site, next], 0)).toBe('return');
     expect(correctCall(mk('w', [4, 8, 2], [1]), [site, next], 0)).toBe('return');
   });
@@ -88,5 +91,72 @@ describe('Sea Wolf generator', () => {
     expect(pool).toHaveLength(6);
     const best = bestTrio(pool, d.site, sc.attrNames, sc.traitNames);
     expect(best.trio).toHaveLength(3);
+  });
+});
+
+describe('Sea Wolf hard mode', () => {
+  const seeds = Array.from({ length: 30 }, (_, i) => `hard-${i}`);
+  for (const variant of ['default', 'alt'] as const) {
+    it(`every site is solvable but tightly constrained (${variant})`, () => {
+      for (const seed of seeds) {
+        const sc = generateSeaWolf(seed, variant, true);
+        const sites = sc.sites.map((d) => d.site);
+        sc.sites.forEach((d, i) => {
+          expect(d.site.solvable).toBe(true);
+          expect(d.designedBest.score).toBe(100);
+          d.site.ranges.forEach(([lo, hi]) => expect(hi - lo + 1).toBe(CONFIG.seaWolf.hard.rangeWidth));
+          // The planted trio: one hidden in the sorting queue (and sortable to "current"), two in the offers.
+          const all = [...d.population, ...d.queue, ...d.reserve];
+          const trio = d.planted.map((id) => all.find((m) => m.id === id)!);
+          expect(evaluate(trio, d.site, sc.attrNames, sc.traitNames).score).toBe(100);
+          const inQueue = d.queue.find((m) => d.planted.includes(m.id))!;
+          expect(fits(inQueue, d.site)).toBe(true);
+          expect(correctCall(inQueue, sites, i)).toBe('current');
+          expect(d.reserve.filter((m) => d.planted.includes(m.id))).toHaveLength(2);
+          // No planted microbe in the offers looks perfect on its own.
+          d.reserve.filter((m) => d.planted.includes(m.id)).forEach((m) => expect(m.attrs.some((a, k) => !inRange(a, d.site.ranges[k]))).toBe(true));
+          // Only a couple of 100% trios exist among everything reachable.
+          const reach = [...d.population, ...d.queue, ...d.reserve, ...(i > 0 ? sc.sites[i - 1].queue : [])];
+          expect(perfectTrios(reach, d.site, 10).length).toBeLessThanOrEqual(CONFIG.seaWolf.hard.maxPerfectTrios);
+        });
+      }
+    });
+  }
+
+  it('a correctly routed planted microbe always reaches the offer rounds', () => {
+    for (const seed of seeds) {
+      const sc = generateSeaWolf(seed, 'default', true);
+      const sites = sc.sites.map((d) => d.site);
+      sc.sites.forEach((d, i) => {
+        const routed = d.queue.filter((m) => correctCall(m, sites, i) === 'current');
+        const offered = new Set(buildOffers(d, routed, new Set()).flat().map((m) => m.id));
+        d.planted.forEach((id) => expect(offered.has(id)).toBe(true));
+      });
+    }
+  });
+
+  it('is harder than standard: fewer desired-trait carriers', () => {
+    let std = 0;
+    let hard = 0;
+    for (const seed of seeds) {
+      const count = (sc: ReturnType<typeof generateSeaWolf>) => sc.sites.reduce((a, d) => a + [...d.population, ...d.reserve].filter((m) => m.traits.includes(d.site.desired)).length, 0);
+      std += count(generateSeaWolf(seed, 'default', false));
+      hard += count(generateSeaWolf(seed, 'default', true));
+    }
+    expect(hard).toBeLessThan(std);
+  });
+});
+
+describe('perfectTrios', () => {
+  it('agrees with the full scorer', () => {
+    for (const seed of ['p1', 'p2', 'p3']) {
+      const sc = generateSeaWolf(seed, 'default', true);
+      const d = sc.sites[0];
+      const pool = [...d.reserve, ...d.queue].slice(0, 16);
+      const fast = perfectTrios(pool, d.site).length;
+      let slow = 0;
+      for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) for (let k = j + 1; k < pool.length; k++) if (evaluate([pool[i], pool[j], pool[k]], d.site, sc.attrNames, sc.traitNames).score === 100) slow++;
+      expect(fast).toBe(slow);
+    }
   });
 });

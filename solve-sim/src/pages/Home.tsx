@@ -70,6 +70,10 @@ export function Home() {
               Sea Wolf alt mode (7 attributes, 5 traits)
             </label>
             <label className="flex items-center gap-2">
+              <input type="checkbox" checked={settings.seaWolfHard} onChange={(e) => updateSettings({ seaWolfHard: e.target.checked })} />
+              Sea Wolf hard mode (narrow ranges, scarce desired trait, decoys — always solvable)
+            </label>
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={settings.legacyEcosystem} onChange={(e) => updateSettings({ legacyEcosystem: e.target.checked })} />
               Show legacy Ecosystem Building game
             </label>

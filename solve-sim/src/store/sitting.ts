@@ -16,7 +16,7 @@ export interface HistoryEntry {
   telemetry?: TelemetryEvent[];
 }
 
-const DEFAULT_SETTINGS: Settings = { tutorialQuirk: false, seaWolfMode: 'default', legacyEcosystem: false };
+const DEFAULT_SETTINGS: Settings = { tutorialQuirk: false, seaWolfMode: 'default', seaWolfHard: true, legacyEcosystem: false };
 const HISTORY_LIMIT = 30;
 const TELEMETRY_KEEP = 5;
 

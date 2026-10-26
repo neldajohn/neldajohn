@@ -39,7 +39,10 @@ Legend: **R** = candidate-reported (prep-provider write-ups, Oct 2026) · **G** 
 | Treatment value = average of the 3 microbes | R |
 | 4-step loop: lock 2 → sort 10 one at a time → pool of 6 + 4 rounds (keep 1 of 3) → pick 3 | R |
 | Effectiveness = 5 checks × 20% | R (widely reported practice model, unconfirmed) |
+| Next-site preview shows only one characteristic (its desired trait) | R (player's understanding; reports vary) |
 | Sorting "fit" = ≥2 of 3 attributes in range and no undesired trait | G |
+| Sorting "next" = not a fit here but carries the next site's desired trait | G (follows from the one-trait preview) |
+| Hard mode: 2-point ranges, more edge ranges, scarce desired trait, near-miss decoys, planted trio split across queue and offers, ≤2 perfect trios per site | G — `seaWolf.hard` |
 | Routed microbes appear in that site's offer rounds | G |
 | 60% of sites solvable to 100% | G |
 
