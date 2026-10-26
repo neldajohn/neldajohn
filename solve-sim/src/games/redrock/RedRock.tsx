@@ -35,6 +35,17 @@ export function RedRock({ seed }: { seed: string }) {
   const [caseAnswers, setCaseAnswers] = useState<string[]>([]);
   const t0 = useRef(Date.now());
   const casesStart = useRef<number | null>(null);
+  const reportReached = useRef(false);
+
+  // What is still missing from the report — shown on the tabs and before submitting.
+  const emptyBlanks = study.report.blanks.filter((b) => !blanks[b.id]).length;
+  const emptyValues = chartValues.filter((v) => v.trim() === '').length;
+  const todo = [
+    ...(emptyBlanks ? [`${emptyBlanks} of ${study.report.blanks.length} written-report blanks are empty`] : []),
+    ...(!chartType ? ['you have not chosen a chart type (Graph Selection)'] : []),
+    ...(emptyValues ? [`${emptyValues} of ${chartValues.length} chart values are empty (Visual Report)`] : []),
+  ];
+  const tabDone: Record<ReportTab, boolean> = { written: emptyBlanks === 0, graph: !!chartType, visual: !!chartType && emptyValues === 0 };
 
   const setStage = (s: Stage) => {
     setStageRaw(s);
@@ -51,6 +62,7 @@ export function RedRock({ seed }: { seed: string }) {
       chartType,
       chartValues,
       caseAnswers: finalCaseAnswers,
+      reportReached: reportReached.current,
       casesReached: casesStart.current ? Math.min(cases.length, finalCaseAnswers.length + (finalCaseAnswers.length < cases.length ? 1 : 0)) : 0,
       studySec: Math.round((studyEnd - t0.current) / 1000),
       casesSec: casesStart.current ? Math.round((now - casesStart.current) / 1000) : 0,
@@ -172,7 +184,8 @@ export function RedRock({ seed }: { seed: string }) {
                 }}
                 className={`-mb-px border-b-2 px-4 py-2 text-sm ${tab === t ? 'border-blue-700 font-semibold text-blue-800' : 'border-transparent text-slate-500'}`}
               >
-                {t === 'written' ? 'Written Report' : t === 'graph' ? 'Graph Selection' : 'Visual Report'}
+                {t === 'written' ? '1. Written Report' : t === 'graph' ? '2. Graph Selection' : '3. Visual Report'}
+                <span className={`ml-1.5 ${tabDone[t] ? 'text-emerald-600' : 'text-amber-600'}`}>{tabDone[t] ? '✓' : '•'}</span>
               </button>
             ))}
           </div>
@@ -220,8 +233,21 @@ export function RedRock({ seed }: { seed: string }) {
               )}
             </Panel>
           )}
-          <div className="flex justify-end">
-            <Button onClick={() => setConfirmCases(true)}>Submit report and start Cases →</Button>
+          <div className="flex items-center justify-between">
+            {tab !== 'visual' ? (
+              <Button variant="ghost" onClick={() => setConfirmCases(true)}>
+                Submit report early
+              </Button>
+            ) : (
+              <span />
+            )}
+            {tab === 'written' && <Button onClick={() => setTab('graph')}>Next: Graph Selection →</Button>}
+            {tab === 'graph' && (
+              <Button disabled={!chartType} onClick={() => setTab('visual')}>
+                {chartType ? 'Next: Visual Report →' : 'Choose a chart type to continue'}
+              </Button>
+            )}
+            {tab === 'visual' && <Button onClick={() => setConfirmCases(true)}>Submit report and start Cases →</Button>}
           </div>
         </div>
       )}
@@ -253,6 +279,8 @@ export function RedRock({ seed }: { seed: string }) {
             <Button
               onClick={() => {
                 setConfirmReport(false);
+                reportReached.current = true;
+                setTab('written');
                 setStage('report');
               }}
             >
@@ -283,6 +311,16 @@ export function RedRock({ seed }: { seed: string }) {
           </>
         }
       >
+        {todo.length > 0 && (
+          <div className="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+            <div className="font-medium">Your report is incomplete:</div>
+            <ul className="mt-1 list-disc pl-5">
+              {todo.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         The report cannot be reopened. The six cases share the remaining time on this clock.
       </Modal>
       <Modal

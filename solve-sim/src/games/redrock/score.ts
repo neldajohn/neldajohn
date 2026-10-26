@@ -9,6 +9,8 @@ export interface RedRockState {
   chartType: ChartType | null;
   chartValues: string[];
   caseAnswers: string[];
+  /** False when time ran out before the Report was opened. */
+  reportReached?: boolean;
   casesReached: number;
   studySec: number;
   casesSec: number;
@@ -96,11 +98,17 @@ export function scoreRedRock(study: Study, cases: Case[], st: RedRockState, even
       `${bRes.length - wrongB.length} of ${bRes.length} blanks correct.${wrongB.length ? ' ' + listSome(wrongB.map(blankText)) : ''}`,
       'Fix the Analysis answers first (value slots inherit them), then drop each result into the slot whose sentence matches its question. For dropdowns, re-read the sentence against your numbers — the trap answer is usually the raw-count leader.'),
     line('product', 0.1, 'Chart type', chartTypeOk ? 100 : 0,
-      chartTypeOk ? `You picked the ${chartName(st.chartType)}.` : `You picked ${chartName(st.chartType)}; this message needs a ${chartName(study.chart.correct)}.`,
+      chartTypeOk
+        ? `You picked the ${chartName(st.chartType)}.`
+        : st.reportReached === false
+          ? `Time ran out before you reached the Report, so no chart was chosen. This message needs a ${chartName(study.chart.correct)}.`
+          : st.chartType
+            ? `You picked a ${chartName(st.chartType)}; this message needs a ${chartName(study.chart.correct)}.`
+            : `You submitted the report without opening Graph Selection (tab 2), so no chart was chosen. This message needs a ${chartName(study.chart.correct)}.`,
       study.chart.correct === 'line' ? 'The values run across years, so it is a trend over time → line chart.' : 'You are comparing a few named categories → bar chart. Pie only works for parts of a whole.'),
     line('product', 0.1, 'Chart values', chartValues,
-      !chartTypeOk ? 'Chart values only count when the chart type is right.' : `${valOk.filter(Boolean).length} of ${valOk.length} values correct.${wrongV.length ? ' Wrong: ' + listSome(wrongV.map((c) => `${c} should be ${study.chart.values[study.chart.categories.indexOf(c)]}`)) : ''}`,
-      `Pick the right chart type first, then enter: ${study.chart.categories.map((c, i) => `${c} = ${study.chart.values[i]}`).join(', ')}.`),
+      !chartTypeOk ? (st.chartType ? 'Chart values only count when the chart type is right.' : 'No chart was chosen, so the Visual Report (tab 3) was never filled in.') : `${valOk.filter(Boolean).length} of ${valOk.length} values correct.${wrongV.length ? ' Wrong: ' + listSome(wrongV.map((c) => `${c} should be ${study.chart.values[study.chart.categories.indexOf(c)]}`)) : ''}`,
+      `In the Report, go to Graph Selection (tab 2), lock the right chart, then fill Visual Report (tab 3) with: ${study.chart.categories.map((c, i) => `${c} = ${study.chart.values[i]}`).join(', ')}.`),
     line('product', 0.25, 'Cases', casesScore,
       `${caseRes.length - wrongC.length} of ${caseRes.length} cases correct.${wrongC.length ? ' Missed: ' + listSome(wrongC.map((c) => `case ${c.n} ${c.title} (${c.type}${c.given ? `, you ${c.given}` : ', not answered'}, answer ${c.expected})`)) : ''}`,
       wrongC.length ? listSome(wrongC.map((c) => `Case ${c.n}: ${c.explanation}`), 6) : ''),
