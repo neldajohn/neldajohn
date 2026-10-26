@@ -352,3 +352,17 @@ export function questionsFor(isResearcher: boolean, day: number): { kind: Questi
     { kind: 'coverage', text: 'How many people should staff it today?' },
   ];
 }
+
+/** Best placement for a day by brute force (4 researchers × 4 stations = 256 options), respecting capacity. */
+export function bestPlacement(sc: IslandScenario, day: number): { placement: number[]; score: number } {
+  const nR = sc.researchers.length;
+  const nS = sc.stations.length;
+  let best = { placement: [] as number[], score: -1 };
+  for (let code = 0; code < Math.pow(nS, nR); code++) {
+    const p = Array.from({ length: nR }, (_, i) => Math.floor(code / Math.pow(nS, i)) % nS);
+    if (Array.from({ length: nS }, (_, s) => p.filter((x) => x === s).length).some((c) => c > CONFIG.sflIsland.stationCapacity)) continue;
+    const score = placementScore(sc, day, p);
+    if (score > best.score) best = { placement: p, score };
+  }
+  return best;
+}

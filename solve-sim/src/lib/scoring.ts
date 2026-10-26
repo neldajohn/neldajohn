@@ -1,5 +1,5 @@
 import { CONFIG } from '../config';
-import type { TelemetryEvent } from './types';
+import type { ScoreLine, TelemetryEvent } from './types';
 
 export const pct = (num: number, den: number) => (den <= 0 ? 0 : (100 * num) / den);
 
@@ -41,3 +41,33 @@ export function budgetScore(actualSec: number, budgetSec: number): number {
 }
 
 export const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+export const PERFECT = 'Nothing to fix — full marks.';
+
+/** Build a score line; `within` is its weight inside the product or process half. */
+export function line(area: ScoreLine['area'], within: number, label: string, score: number, reason: string, fix: string): ScoreLine {
+  const half = area === 'product' ? CONFIG.scoring.productWeight : CONFIG.scoring.processWeight;
+  const s = Math.max(0, Math.min(100, Math.round(score)));
+  return { area, label, weight: within * half, score: s, reason, fix: s >= 100 ? PERFECT : fix };
+}
+
+export const pointsLost = (l: ScoreLine) => l.weight * (100 - l.score);
+
+/** Show at most n items, then "and k more". */
+export function listSome(items: string[], n = 3): string {
+  items = items.map((s) => s.replace(/\.$/, ''));
+  if (items.length <= n) return items.join('; ');
+  return `${items.slice(0, n).join('; ')}; and ${items.length - n} more`;
+}
+
+/** Calm-clicking line shared by every game. */
+export function calmLine(within: number, cpm: number, score: number): ScoreLine {
+  return line(
+    'process',
+    within,
+    'Steady clicking',
+    score,
+    `About ${cpm} clicks a minute (the practice threshold for erratic clicking is ${CONFIG.scoring.erraticClicksPerMin}).`,
+    'Slow down: read, decide, then click once. Rapid trial-and-error clicking counts against you.',
+  );
+}

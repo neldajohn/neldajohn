@@ -3,7 +3,7 @@ import { CONFIG } from '../../config';
 import { GameFrame } from '../../components/GameFrame';
 import { useAutoSubmit } from '../../components/clock';
 import { Button, Modal, Panel } from '../../components/ui';
-import { budgetScore, calmness, combine, durationOf, mean } from '../../lib/scoring';
+import { budgetScore, calmLine, calmness, combine, durationOf, line, listSome, mean } from '../../lib/scoring';
 import type { GameResult, TelemetryEvent } from '../../lib/types';
 import { logEvent, useSitting } from '../../store/sitting';
 import { alignment, dimScores, generateClassic, PRIORITIES, rankingScore, resolveDecision, type ClassicDecision, type ClassicScenario } from './classic';
@@ -206,7 +206,8 @@ export function scoreClassic(sc: ClassicScenario, ranking: number[], shown: Clas
   const product = Math.round(0.2 * rank + 0.6 * quality + 0.2 * consistency);
   const pace = times.length ? mean(times.map((t) => budgetScore(t, CONFIG.sflClassic.perDecisionSec))) : 0;
   const total = times.reduce((a, b) => a + b, 0);
-  const calm = calmness(events, durationOf(events) || 1).score;
+  const calmRes = calmness(events, durationOf(events) || 1);
+  const calm = calmRes.score;
   const completion = (100 * shown.length) / n;
   const process = Math.round(0.4 * completion + 0.4 * pace + 0.2 * calm);
   const dims = dimScores(shown, choices);
@@ -215,7 +216,31 @@ export function scoreClassic(sc: ClassicScenario, ranking: number[], shown: Clas
   if (completion < 100) habit = `Pace: you finished ${shown.length}/${n} decisions. Budget ~90 seconds each.`;
   else if (rank < 75) habit = 'Ranking: re-read the mandate in the briefing — it tells you what the board cares about most.';
   else if (consistency < 60) habit = 'Consistency: your decisions often favoured priorities you ranked low. Let your ranking break ties.';
+  const short = (t: string) => (t.length > 80 ? t.slice(0, 78) + '…' : t);
+  const weak = shown.map((d, i) => ({ d, i, o: d.options[choices[i]] })).filter((x) => x.o.q < 1);
+  const misaligned = shown.map((d, i) => ({ d, a: alignment(ranking, d, choices[i]) })).filter((x) => x.a < 1);
+  const slow = times.map((t, i) => ({ t, i })).filter((x) => x.t > CONFIG.sflClassic.perDecisionSec);
+  const ideal = sc.idealRanking.map((p) => PRIORITIES[p]);
+  const breakdown = [
+    line('product', 0.2, 'Priority ranking', rank,
+      rank >= 100 ? 'Your ranking matched the mandate.' : `You ranked ${ranking.map((p) => PRIORITIES[p]).join(' → ')}; the briefing's mandate implies ${ideal.join(' → ')}.`,
+      `Re-read the mandate in briefing 2 and rank in that order: ${ideal.join(' → ')}.`),
+    line('product', 0.6, 'Decision quality', quality,
+      `${shown.length - weak.length} of ${n} decisions were the strongest option${shown.length < n ? ` (${n - shown.length} not reached, scored zero)` : ''}.${weak.length ? ' Weaker picks: ' + listSome(weak.map((x) => `${x.i + 1}. ${x.d.title}`), 4) : ''}`,
+      weak.length
+        ? `Stronger choices: ${listSome(weak.map((x) => `${x.d.title}: "${short(x.d.options.reduce((b, o) => (o.q > b.q ? o : b)).text)}"`), 3)}. The best option usually gathers just enough information or brings stakeholders in, then commits.`
+        : 'Reach every decision — unanswered ones score zero.'),
+    line('product', 0.2, 'Consistency with your ranking', consistency,
+      misaligned.length ? `${misaligned.length} decision${misaligned.length > 1 ? 's' : ''} favoured priorities you ranked lower: ${listSome(misaligned.map((x) => x.d.title), 4)}.` : 'Every decision followed your own ranking.',
+      'When two options seem equally sensible, pick the one that serves your top-ranked priority.'),
+    line('process', 0.4, 'Completion', completion, `Finished ${shown.length} of ${n} decisions.`, 'Keep moving: ~90 seconds per decision gets you through all of them.'),
+    line('process', 0.4, 'Pace', pace,
+      slow.length ? `${slow.length} decision${slow.length > 1 ? 's' : ''} took over ${CONFIG.sflClassic.perDecisionSec}s: ${listSome(slow.map((x) => `${shown[x.i]?.title} (${x.t}s)`))}.` : times.length ? 'Every decision within 90 seconds.' : 'No decisions made.',
+      `Read the prompt once, eliminate the extreme options, decide within ${CONFIG.sflClassic.perDecisionSec} seconds.`),
+    calmLine(0.2, calmRes.cpm, calm),
+  ];
   return {
+    breakdown,
     game: 'sflClassic',
     product,
     process,

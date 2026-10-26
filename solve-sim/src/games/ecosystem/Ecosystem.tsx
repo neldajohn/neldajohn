@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { GameFrame } from '../../components/GameFrame';
 import { useAutoSubmit, useGameClock } from '../../components/clock';
 import { Button, Panel, Pill } from '../../components/ui';
-import { combine } from '../../lib/scoring';
+import { combine, line, listSome } from '../../lib/scoring';
 import type { GameResult } from '../../lib/types';
 import { logEvent, useSitting } from '../../store/sitting';
 import { CONFIG } from '../../config';
@@ -117,7 +117,16 @@ function scoreEcosystem(sc: EcoScenario, loc: number | null, picked: string[], t
   const product = complete && sim.sustainable && misfits.length === 0 ? 100 : Math.round((80 * healthy) / CONFIG.ecosystem.chainSize) - misfits.length * 5;
   const process = complete ? 100 : Math.round((100 * chosen.length) / CONFIG.ecosystem.chainSize);
   const p = Math.max(0, product);
+  const sol = `${sc.locations[sc.solution.location].name} with ${sc.solution.species.map((id) => sc.pool.find((s) => s.id === id)!.name).join(', ')}`;
+  const issues = [...sim.problems, ...misfits.map((m) => `${m} doesn't suit the location`)];
+  const breakdown = [
+    line('product', 1, 'Sustainable food chain', p,
+      p >= 100 ? 'All eight species survived and were fed.' : `${healthy} of ${CONFIG.ecosystem.chainSize} species healthy${misfits.length ? `, ${misfits.length} unsuited to the location (−5 each)` : ''}. ${listSome(issues, 4)}`,
+      `One working answer: ${sol}. Work bottom-up: producers with spare calories, then herbivores, then predators, and play out the eating order on paper before submitting.`),
+    line('process', 1, 'Completion', process, `Picked ${chosen.length} of ${CONFIG.ecosystem.chainSize} species.`, `Submit exactly ${CONFIG.ecosystem.chainSize} species.`),
+  ];
   return {
+    breakdown,
     game: 'ecosystem',
     product: p,
     process,

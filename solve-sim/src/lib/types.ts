@@ -8,6 +8,18 @@ export interface TelemetryEvent {
   payload?: Record<string, unknown>;
 }
 
+/** One component of a game's score: what it is worth, what you got, why, and how to get full marks. */
+export interface ScoreLine {
+  area: 'product' | 'process';
+  label: string;
+  /** Share of the game score this line can contribute (all lines sum to 1). */
+  weight: number;
+  /** 0–100 on this line. */
+  score: number;
+  reason: string;
+  fix: string;
+}
+
 export interface GameResult {
   game: GameId;
   product: number;
@@ -18,6 +30,8 @@ export interface GameResult {
   /** Game-specific debrief data (missed items, optimal answers, metrics). */
   details: Record<string, unknown>;
   habit: string;
+  /** Older saved runs have no breakdown. */
+  breakdown?: ScoreLine[];
 }
 
 export interface Settings {

@@ -3,6 +3,7 @@ import { GAME_NAMES, type GameId } from '../config';
 import { PALETTE } from '../components/Charts';
 import { mmss } from '../components/clock';
 import { Button, Panel, Pill } from '../components/ui';
+import { pointsLost } from '../lib/scoring';
 import type { GameResult, TelemetryEvent } from '../lib/types';
 import { loadHistory, useSitting, type HistoryEntry } from '../store/sitting';
 
@@ -147,11 +148,64 @@ function Metrics({ m }: { m: Record<string, number | string> }) {
 
 const Ok = ({ ok }: { ok: boolean }) => <span className={ok ? 'text-emerald-700' : 'text-rose-700'}>{ok ? '✓' : '✗'}</span>;
 
+function Breakdown({ r }: { r: GameResult }) {
+  if (!r.breakdown) return <p className="text-sm text-slate-500">This run was saved before score breakdowns existed. Replay the seed to see one.</p>;
+  const lines = [...r.breakdown].sort((a, b) => pointsLost(b) - pointsLost(a));
+  const losing = lines.filter((l) => l.score < 100);
+  const perfect = lines.filter((l) => l.score >= 100);
+  const pts = (x: number) => (Math.round(x * 10) / 10).toString();
+  return (
+    <Panel title={`Why you scored ${r.score} — and how to get to 100`}>
+      <p className="mb-3 text-sm text-slate-600">
+        Your score is 70% answers (product) and 30% how you worked (process). Each row below shows what that part is worth, what you earned, why you lost points and what to change. Biggest losses come first.
+      </p>
+      {losing.length === 0 ? (
+        <p className="text-sm text-emerald-700">Full marks on every part. Nothing to fix.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="py-2 pr-3">Part</th>
+                <th className="py-2 pr-3 text-right">Points</th>
+                <th className="py-2 pr-3">Why you lost points</th>
+                <th className="py-2">To get full marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {losing.map((l) => (
+                <tr key={l.label} className="border-b border-slate-100 align-top">
+                  <td className="py-2 pr-3">
+                    <div className="font-medium text-slate-800">{l.label}</div>
+                    <div className="text-xs text-slate-400">{l.area === 'product' ? 'answers' : 'how you worked'}</div>
+                  </td>
+                  <td className="whitespace-nowrap py-2 pr-3 text-right font-mono tabular-nums">
+                    {pts((l.weight * l.score))}/{pts(l.weight * 100)}
+                    <div className="text-xs text-rose-700">−{pts(pointsLost(l))}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-slate-600">{l.reason}</td>
+                  <td className="py-2 text-slate-700">{l.fix}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {perfect.length > 0 && losing.length > 0 && (
+        <p className="mt-3 text-xs text-slate-500">
+          Full marks already: {perfect.map((l) => `${l.label} (${pts(l.weight * 100)})`).join(', ')}.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
 function GameSection({ r }: { r: GameResult }) {
   const d = r.details as any;
   if (r.game === 'redrock')
     return (
       <Section title="Red Rock Study">
+        <Breakdown r={r} />
         <Metrics m={{ ...d.metrics, ...Object.fromEntries(Object.entries(d.sectionScores).map(([k, v]) => [`${k}Score`, v as number])) }} />
         <Panel title="Objective & trap">
           <p className="text-sm">{d.objective}</p>
@@ -222,6 +276,7 @@ function GameSection({ r }: { r: GameResult }) {
   if (r.game === 'seawolf')
     return (
       <Section title="Sea Wolf">
+        <Breakdown r={r} />
         <Metrics m={d.metrics} />
         <div className="grid grid-cols-3 gap-3">
           {d.sites.map((s: any, i: number) => {
@@ -256,6 +311,7 @@ function GameSection({ r }: { r: GameResult }) {
   if (r.game === 'sflIsland')
     return (
       <Section title="Sustainable Futures Lab · Island">
+        <Breakdown r={r} />
         <Metrics m={d.metrics} />
         <Panel title="By day">
           <table className="w-full text-sm">
@@ -311,6 +367,7 @@ function GameSection({ r }: { r: GameResult }) {
   if (r.game === 'sflClassic')
     return (
       <Section title="Sustainable Futures Lab · Classic">
+        <Breakdown r={r} />
         <Metrics m={{ ...d.metrics, ...d.dims }} />
         <Panel title="Priorities">
           <p className="text-sm">Your ranking: {d.ranking.join(' → ')}</p>
@@ -330,6 +387,7 @@ function GameSection({ r }: { r: GameResult }) {
     );
   return (
     <Section title="Ecosystem Building (legacy)">
+      <Breakdown r={r} />
       <Panel title={d.sustainable ? 'Sustainable ✓' : 'Not sustainable'}>
         <ul className="list-disc pl-5 text-sm">
           {d.problems.map((p: string) => (
