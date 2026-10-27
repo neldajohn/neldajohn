@@ -28,4 +28,5 @@ export const KEYS = {
   active: 'solve-sim:active',
   history: 'solve-sim:history',
   settings: 'solve-sim:settings',
+  drills: 'solve-sim:drills',
 };

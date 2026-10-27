@@ -20,6 +20,7 @@ npm run build    # type-check + production build
 - **SFL Island:** four researchers, four workstations, three days. Each day: Explore → Assign (each move needs a reason backed by evidence) → Support → Reflect, then an overnight reset.
 - **SFL Classic:** rank four priorities, then make 12 decisions. Some later decisions change depending on earlier choices.
 - **Ecosystem Building (legacy):** behind a toggle in Settings.
+- **Drills** (home page): 10 untimed tries on one skill with instant feedback — Sea Wolf sorting, locking, keep-one-of-three and final treatment; Red Rock data spotting, analysis maths and cases; SFL Island explore, assignment reasons, support replies and reflect ratings; SFL Classic decisions.
 - **Debrief:** a practice score for each game (product + process), a timeline of where your time went, what you missed, the optimal answers and one habit to fix. Replay any run from its seed via History.
 
 ## Layout

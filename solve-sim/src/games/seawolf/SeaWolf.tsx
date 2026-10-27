@@ -317,7 +317,7 @@ export function SiteProfile({ site, scenario, title }: { site: Site; scenario: S
   );
 }
 
-function MicrobeCard({ m, scenario, site, selected, onClick, action, large }: { m: Microbe; scenario: Scenario; site?: Site; selected?: boolean; onClick?: () => void; action?: React.ReactNode; large?: boolean }) {
+export function MicrobeCard({ m, scenario, site, selected, onClick, action, large }: { m: Microbe; scenario: Scenario; site?: Site; selected?: boolean; onClick?: () => void; action?: React.ReactNode; large?: boolean }) {
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -369,7 +369,7 @@ function PoolList({ pool, scenario, site }: { pool: Microbe[]; scenario: Scenari
   );
 }
 
-function LiveTreatment({ scenario, site, trio }: { scenario: Scenario; site: Site; trio: Microbe[] }) {
+export function LiveTreatment({ scenario, site, trio }: { scenario: Scenario; site: Site; trio: Microbe[] }) {
   const ev = evaluate(trio, site, scenario.attrNames, scenario.traitNames);
   return (
     <Panel title={`Live treatment (${trio.length}/3)`}>

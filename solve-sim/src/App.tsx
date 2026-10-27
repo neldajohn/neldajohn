@@ -3,6 +3,7 @@ import { CONFIG } from './config';
 import { DragLayer } from './lib/drag';
 import { Abandoned, Complete } from './pages/EndScreens';
 import { Debrief } from './pages/Debrief';
+import { DrillPage } from './pages/Drills';
 import { History } from './pages/History';
 import { Home } from './pages/Home';
 import { SittingHost } from './pages/SittingHost';
@@ -43,6 +44,7 @@ export function App() {
       {view === 'debrief' && <Debrief />}
       {view === 'history' && <History />}
       {view === 'abandoned' && <Abandoned />}
+      {view === 'drill' && <DrillPage />}
       <DragLayer />
     </>
   );

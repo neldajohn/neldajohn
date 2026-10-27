@@ -367,7 +367,7 @@ function Directions({ children }: { children: ReactNode }) {
   );
 }
 
-function SegmentText({ segments, facts, onAdd }: { segments: Segment[]; facts: Record<string, Fact>; onAdd: (f: Fact) => void }) {
+export function SegmentText({ segments, facts, onAdd }: { segments: Segment[]; facts: Record<string, Fact>; onAdd: (f: Fact) => void }) {
   return (
     <>
       {segments.map((s, i) => {
@@ -439,7 +439,7 @@ export function ExhibitView({ exhibit: ex, facts, n, onAdd }: { exhibit: Exhibit
   );
 }
 
-function AnswerBox({ id, value, unit, onChange, onCommit }: { id: string; value: string; unit?: string; onChange: (v: string) => void; onCommit: (v: string) => void }) {
+export function AnswerBox({ id, value, unit, onChange, onCommit }: { id: string; value: string; unit?: string; onChange: (v: string) => void; onCommit: (v: string) => void }) {
   const drop = useDropTarget(id, (item) => {
     const v = String(Math.round(item.value * 100) / 100);
     onChange(v);
@@ -528,7 +528,7 @@ function ValueSlot({ id, study, answers, value, onChange }: { id: string; study:
   );
 }
 
-function CaseRunner({ c, index, total, onSubmit }: { c: Case; index: number; total: number; onSubmit: (a: string) => void }) {
+export function CaseRunner({ c, index, total, onSubmit }: { c: Case; index: number; total: number; onSubmit: (a: string) => void }) {
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [calc, setCalc] = useState<CalcHistory[]>([]);
   const [ans, setAns] = useState('');

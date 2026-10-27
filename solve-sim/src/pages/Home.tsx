@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CONFIG, GAME_NAMES, type GameId, type SittingMode } from '../config';
 import { Button, Panel } from '../components/ui';
 import { randomSeed } from '../lib/rng';
+import { DrillsSection } from './Drills';
 import { useSitting } from '../store/sitting';
 
 const MODE_TEXT: Record<SittingMode, string> = {
@@ -87,6 +88,8 @@ export function Home() {
         </Button>
         <Button onClick={() => setConfirm(true)}>Begin {mode === 'single' ? 'practice' : 'sitting'} ({Math.round(minutes)} min)</Button>
       </div>
+
+      <DrillsSection />
 
       {confirm && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">

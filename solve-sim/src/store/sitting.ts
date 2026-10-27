@@ -3,7 +3,7 @@ import { CONFIG, type GameId, type SittingMode } from '../config';
 import { KEYS, load, remove, save } from '../lib/storage';
 import type { GameResult, Settings, Sitting, TelemetryEvent } from '../lib/types';
 
-export type View = 'home' | 'sitting' | 'complete' | 'debrief' | 'history' | 'abandoned';
+export type View = 'home' | 'sitting' | 'complete' | 'debrief' | 'history' | 'abandoned' | 'drill';
 
 export interface HistoryEntry {
   id: string;
@@ -28,6 +28,8 @@ interface State {
   /** Sitting found in storage on boot that was never finished. */
   abandoned: HistoryEntry | null;
   debriefId: string | null;
+  drillId: string | null;
+  openDrill(id: string): void;
 
   setView(v: View): void;
   updateSettings(p: Partial<Settings>): void;
@@ -84,6 +86,8 @@ export const useSitting = create<State>((set, get) => ({
   phase: 'tutorial',
   abandoned: abandonedAtBoot,
   debriefId: null,
+  drillId: null,
+  openDrill: (drillId) => set({ drillId, view: 'drill' }),
 
   setView: (view) => set({ view }),
 
