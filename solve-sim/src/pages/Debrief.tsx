@@ -45,7 +45,7 @@ export function Debrief() {
       <div className="mt-6 grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(entry.results.length, 1)}, minmax(0, 1fr))` }}>
         {entry.results.map((r) => (
           <div key={r.game} className="rounded-md border border-slate-200 bg-white p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{GAME_NAMES[r.game]}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{GAME_NAMES[r.game] ?? r.game}</div>
             <div className="mt-1 text-4xl font-semibold">{r.score}</div>
             <div className="mt-1 text-xs text-slate-500">
               Product {r.product} · Process {r.process} · {mmss(r.timeSpentSec)} used {r.timedOut && <Pill tone="amber">timed out</Pill>}
@@ -58,7 +58,7 @@ export function Debrief() {
         <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-blue-800">The one habit to fix next run</div>
           <p className="mt-1 text-sm text-slate-700">
-            <span className="font-semibold">{GAME_NAMES[weakest.game]}:</span> {weakest.habit}
+            <span className="font-semibold">{GAME_NAMES[weakest.game] ?? weakest.game}:</span> {weakest.habit}
           </p>
         </div>
       )}
@@ -84,7 +84,7 @@ function Timeline({ entry }: { entry: HistoryEntry }) {
       <div className="space-y-3">
         {games.map((g) => (
           <div key={g}>
-            <div className="mb-1 text-xs text-slate-500">{GAME_NAMES[g]}</div>
+            <div className="mb-1 text-xs text-slate-500">{GAME_NAMES[g] ?? g}</div>
             <div className="relative h-6 rounded bg-slate-100">
               {segs
                 .filter((s) => s.game === g)
@@ -310,81 +310,87 @@ function GameSection({ r }: { r: GameResult }) {
     );
   if (r.game === 'sflIsland')
     return (
-      <Section title="Sustainable Futures Lab · Island">
+      <Section title="Sustainable Futures Lab">
         <Breakdown r={r} />
-        <Metrics m={d.metrics} />
-        <Panel title="By day">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-500">
-                {['Day', 'Goal', 'Placement', 'Support', 'Reflect', 'Evidence-backed reasons', 'Explore', 'Consistency'].map((h) => (
-                  <th key={h} className="py-1">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {d.perDay.map((p: any) => (
-                <tr key={p.day} className="border-t border-slate-100">
-                  <td className="py-1">{p.day}</td>
-                  <td>{p.goal}</td>
-                  <td className="font-mono">{p.placement}</td>
-                  <td className="font-mono">{p.support}</td>
-                  <td className="font-mono">{p.reflect}</td>
-                  <td className="font-mono">{p.reasons}</td>
-                  <td className="font-mono">{p.explore}</td>
-                  <td className="font-mono">{p.consistency}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-        <Panel title="What was true (hidden during the game)">
-          <table className="w-full text-sm">
-            <tbody>
-              {d.truth.map((t: any) => (
-                <tr key={t.name} className="border-b border-slate-100">
-                  <td className="py-1 font-medium">{t.name}</td>
-                  <td className="text-slate-600">skill: {t.skill}</td>
-                  <td className="text-slate-600">prefers: {t.prefs.join(' / ')}</td>
-                  <td className="text-slate-600">feelings: {t.feelings.join(' / ')}</td>
-                </tr>
-              ))}
-              {d.stations.map((s: any) => (
-                <tr key={s.name} className="border-b border-slate-100">
-                  <td className="py-1 font-medium">{s.name}</td>
-                  <td className="text-slate-600" colSpan={3}>
-                    needs: {s.needs.map((n: string | null, i: number) => `${n ?? 'none'} ×${s.coverage[i]}`).join(' / ')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        {d.stages ? (
+          <>
+            <Panel title="Score by stage">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500">
+                    {['Day', 'Goal', 'Explore', 'Assign', 'Support', 'Reflect', 'Time'].map((h) => (
+                      <th key={h} className="py-1">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.perDay.map((p: any) => (
+                    <tr key={p.day} className="border-t border-slate-100">
+                      <td className="py-1">{p.day}</td>
+                      <td>{p.goal}</td>
+                      {['explore', 'assign', 'support', 'reflect', 'time'].map((k) => (
+                        <td key={k} className="font-mono tabular-nums">
+                          {p[k]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="border-t border-slate-200 font-semibold">
+                    <td className="py-1" colSpan={2}>
+                      Overall (opening {d.stages.opening})
+                    </td>
+                    {['explore', 'assign', 'support', 'reflect'].map((k) => (
+                      <td key={k} className="font-mono tabular-nums">
+                        {d.stages[k]}
+                      </td>
+                    ))}
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-slate-500">Low Explore or Reflect means attention to the team, not judgement. Low Support means judgement under a dilemma.</p>
+            </Panel>
+            <Panel title="Your support pattern">
+              {Object.keys(d.pattern).length === 0 ? (
+                <p className="text-sm text-slate-500">No support responses recorded.</p>
+              ) : (
+                <>
+                  <Metrics m={d.pattern} />
+                  <p className="mt-2 text-sm">{d.drift ? `You drift towards: ${d.drift.toLowerCase()}. That is the habit to correct.` : 'No consistent drift away from the middle path.'}</p>
+                </>
+              )}
+            </Panel>
+            <Panel title="What was true (hidden during the game)">
+              <table className="w-full text-sm">
+                <tbody>
+                  {d.truth.map((t: any) => (
+                    <tr key={t.name} className="border-b border-slate-100">
+                      <td className="py-1 font-medium">{t.name}</td>
+                      <td className="text-slate-600">{t.role}</td>
+                      <td className="text-slate-600">starts at: {t.home}</td>
+                      <td className="text-slate-600">contributes most at: {t.strength}</td>
+                    </tr>
+                  ))}
+                  {d.stations.map((s: any) => (
+                    <tr key={s.name} className="border-b border-slate-100">
+                      <td className="py-1 font-medium">{s.name}</td>
+                      <td className="text-slate-600" colSpan={3}>
+                        needs by day: {s.needs.join(' / ')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">This run used the earlier version of the game, so only the breakdown is shown.</p>
+        )}
       </Section>
     );
-  if (r.game === 'sflClassic')
-    return (
-      <Section title="Sustainable Futures Lab · Classic">
-        <Breakdown r={r} />
-        <Metrics m={{ ...d.metrics, ...d.dims }} />
-        <Panel title="Priorities">
-          <p className="text-sm">Your ranking: {d.ranking.join(' → ')}</p>
-          <p className="text-sm">Mandate implies: {d.idealRanking.join(' → ')}</p>
-        </Panel>
-        <Panel title="Decisions">
-          <ul className="space-y-2 text-sm">
-            {d.decisions.map((x: any, i: number) => (
-              <li key={i}>
-                <Ok ok={x.quality >= 0.9} /> <b>{x.title}</b> — {x.chosen}
-                {x.quality < 0.9 && <div className="pl-5 text-xs text-slate-500">Stronger: {x.best}</div>}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </Section>
-    );
+  if (r.game !== 'ecosystem') return null; // runs saved by games that no longer exist
   return (
     <Section title="Ecosystem Building (legacy)">
       <Breakdown r={r} />

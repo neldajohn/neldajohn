@@ -3,6 +3,7 @@ import { Calculator, type CalcHistory } from '../components/Calculator';
 import { FactChip, Journal, type JournalEntry } from '../components/Journal';
 import { Button, Panel, Pill } from '../components/ui';
 import {
+  ARCHETYPE_TEXT,
   DAY_GOALS,
   DRILL_LENGTH,
   DRILLS,
@@ -12,21 +13,18 @@ import {
   gradeData,
   gradeFinal,
   gradeLock,
-  LEVELS,
   makeAnalysisItem,
   makeCaseItem,
-  makeClassicItem,
   makeDataItem,
   makeExploreItem,
   makeFinalItem,
   makeKeepItem,
   makeLockItem,
+  makeOrderItem,
   makeReasonItem,
   makeReflectItem,
   makeSortItem,
   makeSupportItem,
-  priorityText,
-  SERVES_TEXT,
   supportCorrect,
   type DrillId,
   type DrillMeta,
@@ -35,7 +33,7 @@ import { AnswerBox, CaseRunner, ExhibitView, SegmentText } from '../games/redroc
 import { checkNumeric, factLabel, type Fact } from '../games/redrock/model';
 import { LiveTreatment, MicrobeCard, SiteProfile } from '../games/seawolf/SeaWolf';
 import type { SortCall } from '../games/seawolf/model';
-import { REASONS, REFLECT_DIMS, type Rating, type Reason } from '../games/sfl/island';
+import { first, orderScore, REASONS, ratingText, type Rating } from '../games/sfl/island';
 import { randomSeed } from '../lib/rng';
 import { KEYS, load, save } from '../lib/storage';
 import type { Settings } from '../lib/types';
@@ -100,8 +98,8 @@ const ITEMS: Record<DrillId, (p: ItemProps) => ReactNode> = {
   'sfl-explore': (p) => <ExploreDrill {...p} />,
   'sfl-reasons': (p) => <ReasonsDrill {...p} />,
   'sfl-support': (p) => <SupportDrill {...p} />,
+  'sfl-order': (p) => <OrderDrill {...p} />,
   'sfl-reflect': (p) => <ReflectDrill {...p} />,
-  'sfl-classic': (p) => <ClassicDrill {...p} />,
 };
 
 export function DrillPage() {
@@ -568,7 +566,7 @@ function CaseDrill({ seed, onGraded }: ItemProps) {
   );
 }
 
-// ---------------------------------------------------------------- SFL
+// ---------------------------------------------------------------- Sustainable Futures Lab
 
 function DayHeader({ day }: { day: number }) {
   return (
@@ -579,16 +577,18 @@ function DayHeader({ day }: { day: number }) {
   );
 }
 
-function Notes({ items }: { items: { who: string; text: string }[] }) {
+function Notes({ items }: { items: { who: string; text: string; tag?: string }[] }) {
   return (
-    <Panel title="Your notes today">
+    <Panel title="Your notes">
       {items.length === 0 ? (
-        <p className="text-sm text-slate-400">No notes yet.</p>
+        <p className="text-sm text-slate-400">No notes.</p>
       ) : (
         <ul className="space-y-2 text-sm">
           {items.map((n, i) => (
             <li key={i} className="rounded bg-slate-50 p-2">
-              <div className="text-xs font-semibold text-slate-600">{n.who}</div>
+              <div className="text-xs font-semibold text-slate-600">
+                {n.who} {n.tag && <span className="font-normal text-slate-400">· {n.tag}</span>}
+              </div>
               {n.text}
             </li>
           ))}
@@ -616,9 +616,6 @@ function Choices({ options, pick, onPick, mark }: { options: string[]; pick: num
   );
 }
 
-const nameOf = (sc: { researchers: { id: string; name: string }[]; stations: { id: string; name: string }[] }, id: string) =>
-  sc.researchers.find((r) => r.id === id)?.name ?? sc.stations.find((s) => s.id === id)?.name ?? id;
-
 function ExploreDrill({ seed, onGraded }: ItemProps) {
   const it = useMemo(() => makeExploreItem(seed), [seed]);
   const [pick, setPick] = useState<number | null>(null);
@@ -626,7 +623,7 @@ function ExploreDrill({ seed, onGraded }: ItemProps) {
     <div className="grid grid-cols-[1fr_300px] gap-4">
       <div>
         <DayHeader day={it.day} />
-        <p className="mb-3 text-sm text-slate-600">You have one Explore Request left. Which question do you buy?</p>
+        <p className="mb-3 text-sm text-slate-600">You have one request left. Which question do you spend it on?</p>
         <Choices
           options={it.options.map((o) => o.label)}
           pick={pick}
@@ -642,30 +639,23 @@ function ExploreDrill({ seed, onGraded }: ItemProps) {
           </Feedback>
         )}
       </div>
-      <Notes items={it.notes.map((n) => ({ who: nameOf(it.sc, n.target), text: n.answer }))} />
+      <Notes items={it.notes.map((n) => ({ who: n.who, text: n.text, tag: n.day === it.day ? 'today' : `Day ${n.day + 1}` }))} />
     </div>
   );
 }
-
-const REASON_NEEDS: Record<Reason, string> = {
-  preference: 'an answer from the researcher saying they want this workstation',
-  skill: 'an answer from the researcher about their strongest skill (and, if you asked the station, a matching need)',
-  need: 'an answer from this workstation about what it needs',
-  coverage: 'an answer from this workstation saying it needs people today',
-  goal: 'an answer tied to today’s goal: a matching preference on Day 1, the station’s need or coverage on Day 2, either on Day 3',
-};
 
 function ReasonsDrill({ seed, onGraded }: ItemProps) {
   const it = useMemo(() => makeReasonItem(seed), [seed]);
   const [pick, setPick] = useState<number | null>(null);
   const r = it.sc.researchers[it.researcher];
   const s = it.sc.stations[it.station];
+  const nameOf = (id: string) => it.sc.researchers.find((x) => x.id === id)?.name ?? it.sc.stations.find((x) => x.id === id)?.name ?? id;
   return (
     <div className="grid grid-cols-[1fr_300px] gap-4">
       <div>
         <DayHeader day={it.day} />
         <p className="mb-3 text-sm">
-          You are moving <b>{r.name}</b> to <b>{s.name}</b>. Which reason do your notes back up?
+          You are moving <b>{r.name}</b> ({r.role}) to the <b>{s.name}</b>. Which reason do your notes back up?
         </p>
         <Choices
           options={REASONS.map((x) => x.label)}
@@ -675,16 +665,16 @@ function ReasonsDrill({ seed, onGraded }: ItemProps) {
             const ok = it.supported.includes(REASONS[i].id);
             onGraded({ correct: ok, score: ok ? 1 : 0 });
           }}
-          mark={(i) => (it.supported.includes(REASONS[i].id) ? <span className="text-emerald-700">Supported by your notes</span> : <span className="text-slate-500">Needs {REASON_NEEDS[REASONS[i].id]}.</span>)}
+          mark={(i) => (it.supported.includes(REASONS[i].id) ? <span className="text-emerald-700">Backed by your notes</span> : <span className="text-slate-500">Would need {REASONS[i].needs}.</span>)}
         />
         {pick !== null && (
           <Feedback correct={it.supported.includes(REASONS[pick].id)}>
-            <p>Supported here: {it.supported.map((x) => REASONS.find((y) => y.id === x)!.label).join(', ')}.</p>
-            <p className="text-slate-500">A reason only counts when an answer you bought today backs it. Check the notes before picking.</p>
+            <p>Backed here: {it.supported.map((x) => REASONS.find((y) => y.id === x)!.label).join(', ')}.</p>
+            <p className="text-slate-500">Where someone contributes most stays true across days; what a station needs only holds for the day you asked.</p>
           </Feedback>
         )}
       </div>
-      <Notes items={it.notes.map((n) => ({ who: nameOf(it.sc, n.target), text: n.answer }))} />
+      <Notes items={it.notes.map((n) => ({ who: nameOf(n.target), text: n.answer, tag: n.day === it.day ? 'today' : `Day ${n.day + 1}` }))} />
     </div>
   );
 }
@@ -692,35 +682,84 @@ function ReasonsDrill({ seed, onGraded }: ItemProps) {
 function SupportDrill({ seed, onGraded }: ItemProps) {
   const it = useMemo(() => makeSupportItem(seed), [seed]);
   const [pick, setPick] = useState<number | null>(null);
-  const who = it.sc.researchers.find((r) => r.id === it.request.from)!;
+  const who = it.sc.researchers[it.problem.from];
   return (
     <div className="max-w-3xl">
       <DayHeader day={it.day} />
-      {it.earlier && (
-        <p className="mb-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-600">
-          Earlier today you told {it.earlier.who}: “{it.earlier.said}”
-        </p>
-      )}
-      <Panel title={`Request from ${who.name}`}>
-        <p className="mb-4 text-sm">
-          “{it.request.cue} {it.request.text}”
-        </p>
+      <Panel title={`${who.name} · due ${it.problem.deadline}`}>
+        <p className="mb-4 text-sm">“{it.problem.text}”</p>
         <Choices
-          options={it.request.options.map((o) => o.text)}
+          options={it.problem.options.map((o) => o.text)}
           pick={pick}
           onPick={(i) => {
             setPick(i);
             const ok = supportCorrect(it, i);
             onGraded({ correct: ok, score: ok ? 1 : 0 });
           }}
-          mark={(i) => <span className={supportCorrect(it, i) ? 'text-emerald-700' : 'text-slate-500'}>This reply {SERVES_TEXT[it.request.options[i].serves]}.</span>}
+          mark={(i) => <span className={supportCorrect(it, i) ? 'text-emerald-700' : 'text-slate-500'}>{ARCHETYPE_TEXT[it.problem.options[i].archetype]}</span>}
         />
         {pick !== null && (
           <Feedback correct={supportCorrect(it, pick)}>
-            <p>
-              Today’s goal is “{GOAL_TEXT[DAY_GOALS[it.day]]}”, so the best reply {SERVES_TEXT[DAY_GOALS[it.day]]}.
-              {it.earlier ? ' It also matches what you already told the team earlier — consistency counts.' : ''}
-            </p>
+            <p>The strongest reply moves forward with what there is, leaves room to correct course, and lets {first(who.name)} own the problem. The traps: postponing, forcing, giving in, taking over, or losing focus.</p>
+          </Feedback>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function OrderDrill({ seed, onGraded }: ItemProps) {
+  const it = useMemo(() => makeOrderItem(seed), [seed]);
+  const [order, setOrder] = useState(() => it.problems.map((p) => p.id));
+  const [done, setDone] = useState(false);
+  const R = it.sc.researchers;
+  const byId = (id: string) => it.problems.find((p) => p.id === id)!;
+  const ok = order.join() === it.ideal.join();
+  const mv = (i: number, j: number) => {
+    if (done || j < 0 || j >= order.length) return;
+    const o = order.slice();
+    [o[i], o[j]] = [o[j], o[i]];
+    setOrder(o);
+  };
+  return (
+    <div className="max-w-3xl">
+      <DayHeader day={it.day} />
+      <Panel title="These arrive at once — order them">
+        <ol className="space-y-2">
+          {order.map((id, i) => {
+            const p = byId(id);
+            return (
+              <li key={id} className="flex items-center gap-3 rounded border border-slate-200 bg-white p-3 text-sm">
+                <span className="w-5 font-mono text-slate-400">{i + 1}</span>
+                <div className="flex-1">
+                  <div className="font-semibold">{R[p.from].name}</div>
+                  <div className="text-slate-600">{p.text}</div>
+                </div>
+                <button aria-label="Move up" className="px-1 text-slate-400" onClick={() => mv(i, i - 1)}>
+                  ↑
+                </button>
+                <button aria-label="Move down" className="px-1 text-slate-400" onClick={() => mv(i, i + 1)}>
+                  ↓
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="mt-3 flex justify-end">
+          <Button
+            disabled={done}
+            onClick={() => {
+              setDone(true);
+              onGraded({ correct: ok, score: orderScore(order, it.ideal) });
+            }}
+          >
+            Handle in this order
+          </Button>
+        </div>
+        {done && (
+          <Feedback correct={ok}>
+            <p>Deadline order: {it.ideal.map((id) => `${first(R[byId(id).from].name)} (${byId(id).deadline})`).join(' → ')}.</p>
+            <p className="text-slate-500">What is due soonest goes first; what can wait, waits. The deadline is in each message — read for it.</p>
           </Feedback>
         )}
       </Panel>
@@ -732,19 +771,19 @@ function ReflectDrill({ seed, onGraded }: ItemProps) {
   const it = useMemo(() => makeReflectItem(seed), [seed]);
   const [pick, setPick] = useState<Rating | null>(null);
   const r = it.sc.researchers[it.researcher];
-  const options: Rating[] = [...LEVELS, 'unknown'];
+  const options: Rating[] = [0, 1, 2, 'unknown'];
   return (
-    <div className="grid grid-cols-[1fr_300px] gap-4">
+    <div className="grid grid-cols-[1fr_320px] gap-4">
       <div>
         <DayHeader day={it.day} />
         <Panel title="Reflect">
           <p className="mb-3 text-sm">
-            {REFLECT_DIMS[it.day]} Rate <b>{r.name}</b>.
+            How did <b>{r.name}</b> end the day?
           </p>
           <div className="grid grid-cols-4 gap-2">
             {options.map((o) => (
               <Button
-                key={o}
+                key={String(o)}
                 variant={pick === o ? 'primary' : 'secondary'}
                 disabled={pick !== null}
                 onClick={() => {
@@ -752,66 +791,19 @@ function ReflectDrill({ seed, onGraded }: ItemProps) {
                   onGraded({ correct: o === it.answer, score: o === it.answer ? 1 : 0 });
                 }}
               >
-                {o === 'unknown' ? 'I don’t know' : o[0].toUpperCase() + o.slice(1)}
+                {ratingText(o)}
               </Button>
             ))}
           </div>
-          {pick && (
-            <Feedback correct={pick === it.answer} title={pick === it.answer ? '✓ Matches the evidence' : `✗ Best answer: ${it.answer === 'unknown' ? 'I don’t know' : it.answer}`}>
-              {it.evidence === 'none' ? (
-                <p>Your notes say nothing about how {r.name.split(' ')[0]} feels today, so “I don’t know” is the honest rating. (They actually felt {it.truth}, but you had no way to know.)</p>
-              ) : (
-                <p>
-                  {it.evidence === 'asked' ? 'You asked them directly' : 'They told you in a Support request'}, and what they said shows {it.truth}.
-                </p>
-              )}
+          {pick !== null && (
+            <Feedback correct={pick === it.answer} title={pick === it.answer ? '✓ Matches what you saw' : `✗ Best answer: ${ratingText(it.answer)}`}>
+              <p>{it.why}</p>
+              <p className="text-slate-500">Latest wins: a support consequence beats a reaction to being moved, which beats the morning answer.</p>
             </Feedback>
           )}
         </Panel>
       </div>
-      <Notes items={it.notes} />
-    </div>
-  );
-}
-
-function ClassicDrill({ seed, onGraded }: ItemProps) {
-  const it = useMemo(() => makeClassicItem(seed), [seed]);
-  const [pick, setPick] = useState<number | null>(null);
-  const opts = it.decision.options;
-  const quality = (q: number) => (q >= 0.9 ? 'strong' : q >= 0.6 ? 'reasonable' : 'weak');
-  return (
-    <div className="max-w-3xl space-y-4">
-      <div className="rounded-md bg-blue-50 p-3 text-sm">
-        <span className="font-semibold text-blue-800">Mandate: </span>
-        {it.sc.mandate}
-        <div className="mt-1 text-xs text-slate-600">Implied priorities: {priorityText(it.sc)}</div>
-      </div>
-      <Panel title={it.decision.title}>
-        <p className="mb-4 text-sm leading-relaxed">{it.decision.prompt}</p>
-        <Choices
-          options={opts.map((o) => o.text)}
-          pick={pick}
-          onPick={(i) => {
-            setPick(i);
-            const ok = opts[i].q >= opts[it.best].q;
-            onGraded({ correct: ok, score: opts[i].q / opts[it.best].q });
-          }}
-          mark={(i) => <span className={i === it.best ? 'text-emerald-700' : 'text-slate-500'}>{quality(opts[i].q)} option</span>}
-        />
-        {pick !== null && (
-          <Feedback correct={opts[pick].q >= opts[it.best].q}>
-            <p>
-              <b>What happened:</b> {opts[pick].outcome}
-            </p>
-            {pick !== it.best && (
-              <p>
-                <b>Strongest option:</b> {opts[it.best].text} <span className="text-slate-500">→ {opts[it.best].outcome}</span>
-              </p>
-            )}
-            <p className="text-slate-500">Strong options usually gather just enough information or bring stakeholders in, then commit — avoiding both reckless speed and endless delay.</p>
-          </Feedback>
-        )}
-      </Panel>
+      <Notes items={it.notes.map((n) => ({ who: n.who, text: n.text, tag: n.source }))} />
     </div>
   );
 }

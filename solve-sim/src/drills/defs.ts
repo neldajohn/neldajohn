@@ -18,24 +18,29 @@ import {
   type Scenario,
   type SortCall,
 } from '../games/seawolf/model';
-import { generateClassic, PRIORITIES, resolveDecision, type ClassicDecision, type ClassicScenario } from '../games/sfl/classic';
 import {
+  ARCHETYPE_TEXT,
   answerText,
-  cueFor,
+  applyArchetype,
+  clampState,
+  consequenceText,
   DAY_GOALS,
+  first,
   generateIsland,
   GOAL_TEXT,
-  LEVELS,
-  questionsFor,
+  moveDelta,
+  questionText,
+  reactionText,
   REASONS,
   reasonSupported,
+  relevantKinds,
   type IslandScenario,
-  type Level,
+  type Problem,
   type Purchase,
   type QuestionKind,
   type Rating,
   type Reason,
-  type SupportRequest,
+  type State,
 } from '../games/sfl/island';
 
 export const DRILL_LENGTH = 10;
@@ -51,12 +56,12 @@ export type DrillId =
   | 'sfl-explore'
   | 'sfl-reasons'
   | 'sfl-support'
-  | 'sfl-reflect'
-  | 'sfl-classic';
+  | 'sfl-order'
+  | 'sfl-reflect';
 
 export interface DrillMeta {
   id: DrillId;
-  game: 'Sea Wolf' | 'Red Rock' | 'SFL Island' | 'SFL Classic';
+  game: 'Sea Wolf' | 'Red Rock' | 'Sustainable Futures Lab';
   title: string;
   blurb: string;
 }
@@ -69,11 +74,11 @@ export const DRILLS: DrillMeta[] = [
   { id: 'rr-data', game: 'Red Rock', title: 'Spot the data', blurb: 'Read a study and collect only the values the objective needs.' },
   { id: 'rr-analysis', game: 'Red Rock', title: 'Analysis maths', blurb: 'Shares, growth, CAGR, cost per unit, projections — to 2 decimals.' },
   { id: 'rr-cases', game: 'Red Rock', title: 'Cases', blurb: 'Word problems, formulas, true/false/can’t tell, charts, probability.' },
-  { id: 'sfl-explore', game: 'SFL Island', title: 'Explore: what to ask', blurb: 'Spend one Explore Request on the question today’s goal needs.' },
-  { id: 'sfl-reasons', game: 'SFL Island', title: 'Assignment reasons', blurb: 'Which reason do your notes actually support?' },
-  { id: 'sfl-support', game: 'SFL Island', title: 'Support replies', blurb: 'Several replies sound fine — pick the one that serves today’s goal.' },
-  { id: 'sfl-reflect', game: 'SFL Island', title: 'Reflect ratings', blurb: 'Rate a researcher from evidence, or say “I don’t know”.' },
-  { id: 'sfl-classic', game: 'SFL Classic', title: 'Decisions', blurb: 'Programme dilemmas under a mandate: pick the strongest option.' },
+  { id: 'sfl-explore', game: 'Sustainable Futures Lab', title: 'Explore: what to ask', blurb: 'Spend a request on what today’s goal needs — and spot the wasted questions.' },
+  { id: 'sfl-reasons', game: 'Sustainable Futures Lab', title: 'Assignment reasons', blurb: 'Which reason do your notes actually back up?' },
+  { id: 'sfl-support', game: 'Sustainable Futures Lab', title: 'Support replies', blurb: 'Find the middle path; learn to spot postpone, force, give in and take over.' },
+  { id: 'sfl-order', game: 'Sustainable Futures Lab', title: 'Support order', blurb: 'Three problems arrive at once: handle them by deadline.' },
+  { id: 'sfl-reflect', game: 'Sustainable Futures Lab', title: 'Reflect ratings', blurb: 'Rate from the latest thing you saw — or say “I don’t know”.' },
 ];
 
 // ---------------------------------------------------------------- Sea Wolf
@@ -234,44 +239,59 @@ export function makeCaseItem(seed: string): Case {
   return rng.pick(generateCases(seed));
 }
 
-// ---------------------------------------------------------------- SFL Island
+// ---------------------------------------------------------------- Sustainable Futures Lab
 
 export interface ExploreItem {
   sc: IslandScenario;
   day: number;
-  notes: Purchase[];
-  options: { target: string; kind: QuestionKind; label: string; why: string }[];
+  notes: { day: number; who: string; text: string }[];
+  options: { label: string; why: string }[];
   correct: number;
 }
 
-/** Days 1–2 only: on Day 3 every question type is defensible, so there is no single best buy. */
+const nameOfId = (sc: IslandScenario, id: string) => sc.researchers.find((r) => r.id === id)?.name ?? sc.stations.find((s) => s.id === id)?.name ?? id;
+const ask = (sc: IslandScenario, id: string, kind: QuestionKind) => `Ask ${nameOfId(sc, id)}: “${questionText(kind)}”`;
+
+/** One genuinely useful question among three traps: already asked today, out in the field, or already known / off-goal. */
 export function makeExploreItem(seed: string): ExploreItem {
   const rng = makeRng(`${seed}::explore`);
   const sc = generateIsland(seed);
-  const day = rng.int(0, 1);
-  const [ra, rb, rc] = rng.sample(sc.researchers, 3);
-  const [sa, sb] = rng.sample(sc.stations, 2);
-  const q = (isR: boolean, kind: QuestionKind) => questionsFor(isR, day).find((x) => x.kind === kind)!.text;
-  const opt = (target: { id: string; name: string }, isR: boolean, kind: QuestionKind, why: string) => ({ target: target.id, kind, label: `Ask ${target.name}: “${q(isR, kind)}”`, why });
-  // One already-asked target sits in the options: a second question to them is not allowed today.
-  const asked = day === 0 ? rb : sb;
-  const notes: Purchase[] = [{ day, target: asked.id, kind: day === 0 ? 'pref' : 'need', answer: answerText(sc, day, asked.id, day === 0 ? 'pref' : 'need') }];
-  const options =
-    day === 0
-      ? [
-          opt(ra, true, 'pref', 'Day 1 is about researcher needs — a preference is exactly what you need to place them, and it backs a “preference” reason.'),
-          opt(rb, true, 'skill', `You already asked ${rb.name} a question today; only one question per person per day.`),
-          opt(sa, false, 'need', 'Workstation needs are Day 2’s goal; on Day 1 this does not help you meet researcher needs.'),
-          opt(rc, true, 'skill', 'Skill matters for workstation needs (Day 2). Today’s goal is what researchers want.'),
-        ]
-      : [
-          opt(sa, false, 'need', 'Day 2 is about workstation needs — the needed skill tells you who to send, and it backs a “workstation need” reason.'),
-          opt(sb, false, 'coverage', `You already asked ${sb.name} a question today; only one question per workstation per day.`),
-          opt(ra, true, 'pref', 'Preferences serve researcher needs (Day 1), not today’s goal.'),
-          opt(rc, true, 'feeling', 'Feelings help with Reflect, but they don’t help you meet workstation needs.'),
-        ];
-  const order = rng.shuffle(options.map((_, i) => i));
-  return { sc, day, notes, options: order.map((i) => options[i]), correct: order.indexOf(0) };
+  const day = rng.int(0, 2);
+  const R = sc.researchers;
+  const S = sc.stations;
+  const notes: ExploreItem['notes'] = [];
+  const avail = R.filter((r) => r.unavailable !== day);
+  const [askedSt, goodSt] = rng.sample(S, 2);
+  notes.push({ day, who: askedSt.name, text: answerText(sc, day, askedSt.id, 'need') });
+  let correct: { label: string; why: string };
+  let known: (typeof R)[number] | undefined;
+  if (day > 0) {
+    known = rng.pick(avail);
+    notes.push({ day: 0, who: known.name, text: answerText(sc, 0, known.id, 'strength') });
+  }
+  if (DAY_GOALS[day] === 'people' || (DAY_GOALS[day] === 'balance' && rng.chance(0.5))) {
+    const target = rng.pick(avail.filter((r) => r.id !== known?.id));
+    correct = { label: ask(sc, target.id, 'strength'), why: `${GOAL_TEXT[DAY_GOALS[day]]}: where ${first(target.name)} contributes most is exactly what you need, and it backs a “where they contribute most” move.` };
+  } else {
+    correct = { label: ask(sc, goodSt.id, 'need'), why: `${GOAL_TEXT[DAY_GOALS[day]]}: what this station needs today tells you who to send, and it backs a “matches what the station needs” move.` };
+  }
+  const traps: { label: string; why: string }[] = [
+    { label: ask(sc, askedSt.id, 'srisk'), why: `You already asked the ${askedSt.name} today — each station answers one question a day.` },
+  ];
+  const off = R.find((r) => r.unavailable === day);
+  if (off) traps.push({ label: ask(sc, off.id, 'mood'), why: `${off.name} is out at the field site today and can’t be asked.` });
+  if (known) traps.push({ label: ask(sc, known.id, 'strength'), why: `You already know where ${first(known.name)} contributes most (Day 1 notes) — that doesn’t change, so asking again wastes a request.` });
+  if (DAY_GOALS[day] === 'people') {
+    traps.push({ label: ask(sc, goodSt.id, 'srisk'), why: 'Station risks serve Day 2’s goal. Today is about the people.' });
+    const w = rng.pick(avail.filter((x) => !correct.label.includes(x.name)));
+    traps.push({ label: ask(sc, w.id, 'risk'), why: 'A question about the work, not the person. On Day 1 the goal is to understand the people.' });
+  }
+  if (DAY_GOALS[day] === 'stations') {
+    const r = rng.pick(avail.filter((x) => x.id !== known?.id));
+    traps.push({ label: ask(sc, r.id, 'strength'), why: 'Where people contribute most serves Day 1’s goal. Today is about covering the stations.' });
+  }
+  const options = rng.shuffle([correct, ...traps.slice(0, 3)]);
+  return { sc, day, notes, options, correct: options.indexOf(correct) };
 }
 
 export interface ReasonItem {
@@ -288,15 +308,19 @@ export function makeReasonItem(seed: string): ReasonItem {
   const sc = generateIsland(seed);
   const day = rng.int(0, 2);
   for (;;) {
-    // Buy 2–3 random answers (one per entity), then propose a move that at least one of them supports.
-    const targets = rng.sample([...sc.researchers.map((r) => ({ id: r.id, isR: true })), ...sc.stations.map((s) => ({ id: s.id, isR: false }))], rng.int(2, 3));
-    const notes: Purchase[] = targets.map((t) => {
-      const kinds: QuestionKind[] = t.isR ? ['pref', 'skill'] : ['need', 'coverage'];
-      const kind = rng.pick(kinds);
-      return { day, target: t.id, kind, answer: answerText(sc, day, t.id, kind) };
+    const notes: Purchase[] = [];
+    // Strength answers may come from earlier days (they stay true); station answers only count today.
+    rng.sample(sc.researchers, rng.int(1, 2)).forEach((r) => {
+      const d = rng.int(0, day);
+      notes.push({ day: d, target: r.id, kind: 'strength', answer: answerText(sc, d, r.id, 'strength') });
     });
-    const researcher = rng.int(0, sc.researchers.length - 1);
-    const station = rng.int(0, sc.stations.length - 1);
+    rng.sample(sc.stations, rng.int(1, 2)).forEach((s) => {
+      const d = rng.chance(0.75) ? day : Math.max(0, day - 1);
+      const kind = rng.pick(['need', 'srisk'] as QuestionKind[]);
+      notes.push({ day: d, target: s.id, kind, answer: answerText(sc, d, s.id, kind) });
+    });
+    const researcher = rng.int(0, 3);
+    const station = rng.int(0, 3);
     const supported = REASONS.map((r) => r.id).filter((r) => reasonSupported(sc, day, notes, researcher, station, r));
     if (supported.length && supported.length < REASONS.length) return { sc, day, notes, researcher, station, supported };
   }
@@ -305,75 +329,79 @@ export function makeReasonItem(seed: string): ReasonItem {
 export interface SupportItem {
   sc: IslandScenario;
   day: number;
-  request: SupportRequest;
-  earlier?: { who: string; said: string };
+  problem: Problem;
 }
 
 export function makeSupportItem(seed: string): SupportItem {
   const rng = makeRng(`${seed}::support`);
   const sc = generateIsland(seed);
   const day = rng.int(0, 2);
-  const reqs = sc.support[day];
-  const request = rng.pick(reqs);
-  const src = request.linkedTo ? reqs.find((r) => r.id === request.linkedTo) : undefined;
-  const earlier = src ? { who: sc.researchers.find((r) => r.id === src.from)!.name, said: src.options.find((o) => o.serves === DAY_GOALS[day])!.text } : undefined;
-  return { sc, day, request, earlier };
+  return { sc, day, problem: rng.pick(sc.problems[day]) };
+}
+export const supportCorrect = (it: SupportItem, idx: number) => it.problem.options[idx].archetype === 'middle';
+export { ARCHETYPE_TEXT };
+
+export interface OrderItem {
+  sc: IslandScenario;
+  day: number;
+  problems: Problem[];
+  ideal: string[];
 }
 
-export const supportCorrect = (it: SupportItem, idx: number) => it.request.options[idx].serves === DAY_GOALS[it.day];
-
-export const SERVES_TEXT: Record<string, string> = {
-  researcher: 'puts the researcher first',
-  workstation: 'puts the workstation first',
-  balance: 'balances both',
-  none: 'avoids deciding',
-};
+export function makeOrderItem(seed: string): OrderItem {
+  const rng = makeRng(`${seed}::order`);
+  const sc = generateIsland(seed);
+  const day = rng.int(0, 2);
+  const problems = rng.shuffle(sc.problems[day]);
+  return { sc, day, problems, ideal: [...problems].sort((a, b) => a.deadlineRank - b.deadlineRank).map((p) => p.id) };
+}
 
 export interface ReflectItem {
   sc: IslandScenario;
   day: number;
   researcher: number;
-  notes: { who: string; text: string }[];
-  evidence: 'asked' | 'heard' | 'none';
-  truth: Level;
+  notes: { who: string; text: string; source: string }[];
   answer: Rating;
+  why: string;
 }
 
+/** Rate from the latest observation today; older days and other people don't count. */
 export function makeReflectItem(seed: string): ReflectItem {
   const rng = makeRng(`${seed}::reflect`);
   const sc = generateIsland(seed);
   const day = rng.int(0, 2);
-  const researcher = rng.int(0, sc.researchers.length - 1);
-  const r = sc.researchers[researcher];
-  const evidence = rng.pick(['asked', 'heard', 'none'] as const);
-  const others = rng.sample(sc.researchers.filter((x) => x.id !== r.id), 2);
-  const notes = others.map((o) => ({ who: o.name, text: rng.chance(0.5) ? answerText(sc, day, o.id, 'pref') : `(said in Support) “${cueFor(day, o.feeling[day], rng)}”` }));
-  if (evidence === 'asked') notes.push({ who: r.name, text: answerText(sc, day, r.id, 'feeling') });
-  if (evidence === 'heard') notes.push({ who: r.name, text: `(said in Support) “${cueFor(day, r.feeling[day], rng)}”` });
-  if (evidence === 'none' && rng.chance(0.5)) notes.push({ who: r.name, text: answerText(sc, day, r.id, 'pref') }); // a note about them that says nothing about feelings
-  const truth = r.feeling[day];
-  return { sc, day, researcher, notes: rng.shuffle(notes), evidence, truth, answer: evidence === 'none' ? 'unknown' : truth };
+  const ri = rng.int(0, 3);
+  const r = sc.researchers[ri];
+  let state: State = clampState(rng.int(0, 2));
+  const notes: ReflectItem['notes'] = [];
+  let latest: State | null = null;
+  let why = '';
+  const others = sc.researchers.filter((x) => x.id !== r.id);
+  const o = rng.pick(others);
+  notes.push({ who: o.name, text: answerText(sc, day, o.id, 'mood', clampState(rng.int(0, 2)), rng), source: 'answered' });
+  if (day > 0 && rng.chance(0.5)) notes.unshift({ who: `${r.name} (yesterday)`, text: `“${rng.pick(['Great day, really productive.', 'Rough day, honestly.'])}”`, source: 'answered yesterday' });
+  if (rng.chance(0.6)) {
+    notes.push({ who: r.name, text: answerText(sc, day, r.id, 'mood', state, rng), source: 'answered this morning' });
+    latest = state;
+    why = 'their answer this morning';
+  }
+  if (rng.chance(0.5)) {
+    const to = rng.pick([0, 1, 2, 3].filter((s) => s !== r.home));
+    const delta = moveDelta(r, r.home, to);
+    state = clampState(state + delta);
+    notes.push({ who: r.name, text: reactionText(to, state, sc, delta), source: 'on being moved' });
+    latest = state;
+    why = 'how they reacted when you moved them';
+  }
+  if (rng.chance(0.5)) {
+    const p = { ...rng.pick(sc.problems[day]), from: ri };
+    const a = rng.pick(['middle', 'postpone', 'force', 'giveIn', 'decideForThem'] as const);
+    state = applyArchetype(state, a);
+    notes.push({ who: r.name, text: consequenceText(sc, p, a, state), source: 'after support' });
+    latest = state;
+    why = 'how their problem ended — the latest thing you saw';
+  }
+  return { sc, day, researcher: ri, notes, answer: latest ?? 'unknown', why: latest === null ? 'Nothing in today’s notes says how they are — yesterday and other people don’t count.' : `The latest thing you saw today was ${why}.` };
 }
 
-// ---------------------------------------------------------------- SFL Classic
-
-export interface ClassicItem {
-  sc: ClassicScenario;
-  decision: ClassicDecision;
-  best: number;
-}
-
-export function makeClassicItem(seed: string): ClassicItem {
-  const rng = makeRng(`${seed}::classic`);
-  const sc = generateClassic(seed);
-  const idx = rng.int(0, sc.decisions.length - 1);
-  const node = sc.decisions[idx];
-  const tags = 'variants' in node ? { [node.branchOn]: rng.pick(Object.keys(node.variants)) } : {};
-  const decision = resolveDecision(sc, idx, tags);
-  const shuffled = { ...decision, options: rng.shuffle(decision.options) };
-  const best = shuffled.options.reduce((b, o, i) => (o.q > shuffled.options[b].q ? i : b), 0);
-  return { sc, decision: shuffled, best };
-}
-
-export const priorityText = (sc: ClassicScenario) => sc.idealRanking.map((p) => PRIORITIES[p]).join(' → ');
-export { DAY_GOALS, GOAL_TEXT, LEVELS };
+export { DAY_GOALS, GOAL_TEXT, relevantKinds };

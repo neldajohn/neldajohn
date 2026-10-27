@@ -7,8 +7,8 @@ Legend: **R** = candidate-reported (prep-provider write-ups, Oct 2026) · **G** 
 ## Sitting
 | Detail | Source | Where |
 |---|---|---|
-| 65 / 85 / 95-minute invites and game order | R | `CONFIG.modes` |
-| Clocks 35 / 30 / 20 / ~30 min | R (SFL Island ~30 is approximate) | `CONFIG.clocks` |
+| 65 / 95-minute invites and game order (85-min Classic mode removed) | R | `CONFIG.modes` |
+| Clocks 35 / 30 / ~30 min | R (SFL ~30 is approximate) | `CONFIG.clocks` |
 | Untimed tutorials; clock starts after | R | `Tutorial.tsx` |
 | Quirk: tutorial ends unannounced with clock running | R (some candidates) | Settings toggle; 60 s auto-end is **G** |
 | Unused time does not carry over; no re-entry | R | `store/sitting.ts` |
@@ -46,17 +46,27 @@ Legend: **R** = candidate-reported (prep-provider write-ups, Oct 2026) · **G** 
 | Routed microbes appear in that site's offer rounds | G |
 | 60% of sites solvable to 100% | G |
 
-## Sustainable Futures Lab
+## Sustainable Futures Lab (30-minute, three-day format)
+Sources: prep-guide summaries (e.g. a CasePracticeFree guide updated Oct 2026, citing Prepmatter, StrategyCase, SolvePrep). The older 20-minute text-only "Classic" version has been removed from this simulator.
+
 | Detail | Source |
 |---|---|
-| Classic: text-only, 2 intro screens, rank 4 priorities, ~12 decisions, outcome pages, branching, 20 min | R |
-| Island: 4 researchers, 4 workstations, 3 days, day goals (researcher / workstation / balance) | R |
-| Explore / Assign / Support / Reflect loop, overnight reset | R |
-| Explore Requests 3 / 3 / 2 | G (practice default; reports vary) |
-| Capacity 2 per workstation; 5 assignment reasons | R |
-| Reason counts only if backed by an answer bought today | R (reported), scoring weight **G** |
-| Reflect: 3-point scale + "I don't know" | R; whether it is scored is unknown — credit rule is **G** |
-| All SFL scoring dimensions and weights | G |
+| ~30 min, last game, only on ~95-min invites; untimed tutorial | R |
+| 4 researchers: ecologist, biologist, habitat planner, engineer; 4 stations: water, plants, animals, communications | R |
+| Opening exercise: rank the questions you'd ask about the project, then read the answers | R |
+| Day goals: Day 1 people, Day 2 stations, Day 3 balance with the deadline close | R |
+| Explore: usually 3 requests a day, sometimes 2 (practice default 3/3/2); must use all before Assign | R |
+| Each person/station offers two questions (work or person); each answers one question a day; not everyone available every day | R |
+| Assign: station can be empty or hold two; people start at the station matching their experience; placements carry over; each move needs a reason from a fixed menu | R |
+| Support: paragraph options; several problems at once, order matters (deadline first) | R |
+| Reflect: how each person ended the day, with "I don't know" | R |
+| Best support answers are the middle path that lets the person own it; weak ones postpone, force, give in, take over or lose focus | R (guides' advice, not confirmed scoring) |
+| Learning mode with a review after each stage | R (mirrors a prep simulator's learning mode) |
+| Reason menu wording, question wording, 3-point Struggling/Okay/Thriving scale | G |
+| States move with events (moved to where they contribute most +1, moved away −1, middle-path support +1, postpone/force/take over −1) | G |
+| Reflect credit = matches the latest state you observed that day; no observation → "I don't know" | G |
+| Notes persist across days; "contributes most" stays true, station needs only hold for the day asked | G |
+| Stage weights (opening 5, explore 20, assign 30, support 25, reflect 20) and 10-min daily budget | G (10 min/day is the guides' reference) |
 
 ## Ecosystem Building (legacy)
 | Detail | Source |
@@ -67,5 +77,4 @@ Legend: **R** = candidate-reported (prep-provider write-ups, Oct 2026) · **G** 
 ## Known unknowns
 - Exact Sea Wolf attribute/trait counts and the real score formula.
 - How much (if at all) process telemetry is weighted. The practice model uses 70% product / 30% process (`CONFIG.scoring`).
-- Whether SFL Island Reflect ratings are scored directly.
-- Whether the 95-min SFL Island format is a pilot or the new standard.
+- Whether SFL Reflect ratings are scored directly, and how Support order is weighted.

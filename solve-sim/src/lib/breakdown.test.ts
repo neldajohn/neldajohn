@@ -3,10 +3,8 @@ import { generateCases, generateStudy } from '../games/redrock/model';
 import { scoreRedRock } from '../games/redrock/score';
 import { evaluate, bestTrio, correctCall, generateSeaWolf } from '../games/seawolf/model';
 import { scoreSeaWolf, type SiteOutcome } from '../games/seawolf/score';
-import { generateClassic, resolveDecision } from '../games/sfl/classic';
-import { scoreClassic } from '../games/sfl/Classic';
 import { generateIsland } from '../games/sfl/island';
-import { scoreIsland, type IslandDay } from '../games/sfl/islandScore';
+import { scoreIsland, type DayRecord } from '../games/sfl/islandScore';
 import type { GameResult } from './types';
 
 function check(r: GameResult) {
@@ -52,15 +50,20 @@ describe('score breakdowns', () => {
     check(scoreSeaWolf(sc, outcomes, [], true));
   });
 
-  it('SFL Island', () => {
+  it('Sustainable Futures Lab', () => {
     const sc = generateIsland('bd');
-    const day: IslandDay = { day: 0, placement: [0, 1, null, 2], reasons: [{ researcher: 0, station: 0, reason: 'preference', supported: false }], support: [0, 1, 2, 0], ratings: { r0: 'high' }, evidence: {}, purchases: [], requestsAvailable: 3, seconds: 700 };
-    check(scoreIsland(sc, [day], [], true, 200));
-  });
-
-  it('SFL Classic', () => {
-    const sc = generateClassic('bd');
-    const shown = [0, 1, 2].map((i) => resolveDecision(sc, i, {}));
-    check(scoreClassic(sc, [3, 2, 1, 0], shown, [1, 0, 2], [60, 120, 30], [], true));
+    const day: DayRecord = {
+      day: 0,
+      purchases: [{ day: 0, target: 's0', kind: 'need', answer: '' }],
+      moves: [{ researcher: 0, from: sc.researchers[0].home, to: 2, reason: 'contribute', supported: false }],
+      placement: [2, 1, 2, 3],
+      order: sc.problems[0].map((p) => p.id),
+      choices: { [sc.problems[0][0].id]: 'postpone' },
+      ratings: { r0: 2 },
+      expected: { r0: 'unknown', r1: 'unknown', r2: 'unknown', r3: 'unknown' },
+      requestsAvailable: 3,
+      seconds: 700,
+    };
+    check(scoreIsland(sc, null, [day], [], true, 200));
   });
 });

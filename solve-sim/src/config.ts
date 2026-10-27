@@ -2,14 +2,13 @@
  * Every timing, count and weight in one place. Values are candidate-reported
  * (see REPORTED_FACTS.md) and expected to drift — tweak here, not in components.
  */
-export type GameId = 'redrock' | 'seawolf' | 'sflClassic' | 'sflIsland' | 'ecosystem';
-export type SittingMode = 65 | 85 | 95;
+export type GameId = 'redrock' | 'seawolf' | 'sflIsland' | 'ecosystem';
+export type SittingMode = 65 | 95;
 
 export const GAME_NAMES: Record<GameId, string> = {
   redrock: 'Red Rock Study',
   seawolf: 'Sea Wolf',
-  sflClassic: 'Sustainable Futures Lab (Classic)',
-  sflIsland: 'Sustainable Futures Lab (Island)',
+  sflIsland: 'Sustainable Futures Lab',
   ecosystem: 'Ecosystem Building (legacy)',
 };
 
@@ -17,7 +16,6 @@ export const CONFIG = {
   defaultMode: 95 as SittingMode,
   modes: {
     65: ['redrock', 'seawolf'],
-    85: ['redrock', 'seawolf', 'sflClassic'],
     95: ['redrock', 'seawolf', 'sflIsland'],
   } as Record<SittingMode, GameId[]>,
 
@@ -25,7 +23,6 @@ export const CONFIG = {
   clocks: {
     redrock: 35 * 60,
     seawolf: 30 * 60,
-    sflClassic: 20 * 60,
     sflIsland: 30 * 60,
     ecosystem: 35 * 60,
   } as Record<GameId, number>,
@@ -80,17 +77,16 @@ export const CONFIG = {
     },
   },
 
-  sflClassic: { priorities: 4, decisions: 12, perDecisionSec: 90 },
-
   sflIsland: {
     researchers: 4,
     workstations: 4,
     days: 3,
+    /** Usually 3 per day; some reports have 2 on Day 3. */
     exploreRequests: [3, 3, 2],
     stationCapacity: 2,
-    supportRequestsPerDay: 4,
-    onboardingBudgetSec: 3 * 60,
-    perDayBudgetSec: 9 * 60,
+    supportProblemsPerDay: 3,
+    openingBudgetSec: 2 * 60,
+    perDayBudgetSec: 10 * 60,
     day1WarnElapsedSec: 12 * 60,
   },
 

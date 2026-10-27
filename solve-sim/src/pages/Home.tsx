@@ -7,8 +7,7 @@ import { useSitting } from '../store/sitting';
 
 const MODE_TEXT: Record<SittingMode, string> = {
   65: 'Red Rock → Sea Wolf',
-  85: 'Red Rock → Sea Wolf → SFL Classic',
-  95: 'Red Rock → Sea Wolf → SFL Island',
+  95: 'Red Rock → Sea Wolf → Sustainable Futures Lab',
 };
 
 export function Home() {
@@ -18,7 +17,7 @@ export function Home() {
   const [seed, setSeed] = useState('');
   const [confirm, setConfirm] = useState(false);
 
-  const singles: GameId[] = ['redrock', 'seawolf', 'sflIsland', 'sflClassic', ...(settings.legacyEcosystem ? (['ecosystem'] as GameId[]) : [])];
+  const singles: GameId[] = ['redrock', 'seawolf', 'sflIsland', ...(settings.legacyEcosystem ? (['ecosystem'] as GameId[]) : [])];
   const start = () => startSitting(mode, seed.trim() || randomSeed(), mode === 'single' ? single : undefined);
   const minutes = mode === 'single' ? CONFIG.clocks[single] / 60 : CONFIG.modes[mode].reduce((a, g) => a + CONFIG.clocks[g], 0) / 60;
 
@@ -31,8 +30,8 @@ export function Home() {
         original and procedurally generated; timings and scoring are a practice model.
       </p>
 
-      <div className="mt-8 grid grid-cols-4 gap-3">
-        {([65, 85, 95] as SittingMode[]).map((m) => (
+      <div className="mt-8 grid grid-cols-3 gap-3">
+        {([65, 95] as SittingMode[]).map((m) => (
           <button key={m} onClick={() => setMode(m)} className={`rounded-md border p-4 text-left ${mode === m ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
             <div className="text-2xl font-semibold">{m} min</div>
             <div className="mt-1 text-xs text-slate-500">{MODE_TEXT[m]}</div>
@@ -73,6 +72,10 @@ export function Home() {
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={settings.seaWolfHard} onChange={(e) => updateSettings({ seaWolfHard: e.target.checked })} />
               Sea Wolf hard mode (narrow ranges, scarce desired trait, decoys — always solvable)
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={settings.sflLearning} onChange={(e) => updateSettings({ sflLearning: e.target.checked })} />
+              SFL learning mode in single-game practice (review after each stage; full sittings are always test mode)
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={settings.legacyEcosystem} onChange={(e) => updateSettings({ legacyEcosystem: e.target.checked })} />

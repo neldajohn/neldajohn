@@ -8,12 +8,12 @@ import {
   gradeLock,
   makeAnalysisItem,
   makeCaseItem,
-  makeClassicItem,
   makeDataItem,
   makeExploreItem,
   makeFinalItem,
   makeKeepItem,
   makeLockItem,
+  makeOrderItem,
   makeReasonItem,
   makeReflectItem,
   makeSortItem,
@@ -26,7 +26,7 @@ const seeds = Array.from({ length: DRILL_LENGTH }, (_, i) => `drill-${i}`);
 
 describe('drills', () => {
   it('covers every game with at least one drill', () => {
-    expect(new Set(DRILLS.map((d) => d.game))).toEqual(new Set(['Sea Wolf', 'Red Rock', 'SFL Island', 'SFL Classic']));
+    expect(new Set(DRILLS.map((d) => d.game))).toEqual(new Set(['Sea Wolf', 'Red Rock', 'Sustainable Futures Lab']));
   });
 
   for (const hard of [false, true]) {
@@ -70,17 +70,17 @@ describe('drills', () => {
   it('SFL items have exactly-defined right answers', () => {
     for (const s of seeds) {
       const ex = makeExploreItem(s);
-      expect(ex.options).toHaveLength(4);
-      expect(ex.correct).toBeGreaterThanOrEqual(0);
+      expect(ex.options.length).toBeGreaterThanOrEqual(3);
+      expect(ex.options[ex.correct]).toBeDefined();
       const re = makeReasonItem(s);
       expect(re.supported.length).toBeGreaterThan(0);
       re.supported.forEach((r) => expect(reasonSupported(re.sc, re.day, re.notes, re.researcher, re.station, r)).toBe(true));
       const su = makeSupportItem(s);
-      expect(su.request.options.filter((_, i) => supportCorrect(su, i))).toHaveLength(1);
+      expect(su.problem.options.filter((_, i) => supportCorrect(su, i))).toHaveLength(1);
+      const or = makeOrderItem(s);
+      expect(or.ideal).toHaveLength(or.problems.length);
       const rf = makeReflectItem(s);
-      expect(rf.answer).toBe(rf.evidence === 'none' ? 'unknown' : rf.truth);
-      const cl = makeClassicItem(s);
-      expect(cl.decision.options[cl.best].q).toBe(Math.max(...cl.decision.options.map((o) => o.q)));
+      expect(rf.why.length).toBeGreaterThan(0);
     }
   });
 });

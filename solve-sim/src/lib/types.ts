@@ -39,6 +39,8 @@ export interface Settings {
   seaWolfMode: 'default' | 'alt';
   /** Harder Sea Wolf generation (still always solvable). */
   seaWolfHard: boolean;
+  /** SFL learning mode: a review after each stage (single-game practice only). */
+  sflLearning: boolean;
   legacyEcosystem: boolean;
 }
 

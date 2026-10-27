@@ -14,13 +14,12 @@ npm run build    # type-check + production build
 
 ## What's inside
 
-- **Sittings:** 65 / 85 / 95 minutes (95 is the default) or single-game practice. Each game has its own clock and an untimed tutorial. There's no going back to an earlier game, and closing the tab abandons the attempt.
+- **Sittings:** 65 / 95 minutes (95 is the default) or single-game practice. Each game has its own clock and an untimed tutorial. There's no going back to an earlier game, and closing the tab abandons the attempt.
 - **Red Rock Study:** drag values from the study into a Research Journal, answer questions with an on-screen calculator that keeps a history, fill a one-way report and lock a chart type, then work through six sequential cases.
 - **Sea Wolf:** three sites. For each: lock two characteristics, sort the queue, build the prospect pool, pick the final three. The generator mixes sites where 100% is reachable with sites where it isn't, and the debrief shows the best possible score for every site.
-- **SFL Island:** four researchers, four workstations, three days. Each day: Explore → Assign (each move needs a reason backed by evidence) → Support → Reflect, then an overnight reset.
-- **SFL Classic:** rank four priorities, then make 12 decisions. Some later decisions change depending on earlier choices.
+- **Sustainable Futures Lab:** opening question ranking, then three days of Explore → Assign → Support → Reflect with four researchers (ecologist, biologist, habitat planner, engineer) and four stations. Placements and notes carry over; support problems arrive together with deadlines; learning mode adds a review after each stage in single-game practice.
 - **Ecosystem Building (legacy):** behind a toggle in Settings.
-- **Drills** (home page): 10 untimed tries on one skill with instant feedback — Sea Wolf sorting, locking, keep-one-of-three and final treatment; Red Rock data spotting, analysis maths and cases; SFL Island explore, assignment reasons, support replies and reflect ratings; SFL Classic decisions.
+- **Drills** (home page): 10 untimed tries on one skill with instant feedback — Sea Wolf sorting, locking, keep-one-of-three and final treatment; Red Rock data spotting, analysis maths and cases; Sustainable Futures Lab explore, assignment reasons, support replies, support order and reflect ratings.
 - **Debrief:** a practice score for each game (product + process), a timeline of where your time went, what you missed, the optimal answers and one habit to fix. Replay any run from its seed via History.
 
 ## Layout

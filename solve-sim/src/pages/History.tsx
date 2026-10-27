@@ -35,9 +35,9 @@ export function History() {
                   <Pill tone="amber">abandoned</Pill>
                 ) : (
                   h.results.map((r) => (
-                    <span key={r.game} title={GAME_NAMES[r.game]}>
+                    <span key={r.game} title={GAME_NAMES[r.game] ?? r.game}>
                       <Pill tone="blue">
-                        {GAME_NAMES[r.game].split(' ')[0]} {r.score}
+                        {(GAME_NAMES[r.game] ?? r.game).split(' ')[0]} {r.score}
                       </Pill>
                     </span>
                   ))
