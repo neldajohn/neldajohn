@@ -81,7 +81,7 @@ export interface Case {
   explanation: string;
 }
 
-export type TemplateId = 'largestShare' | 'highestGrowth' | 'lowestCost' | 'projection';
+export type TemplateId = 'largestShare' | 'highestGrowth' | 'lowestCost' | 'projection' | 'ppChange' | 'perPupil' | 'payback';
 
 // ---------------------------------------------------------------- helpers
 
@@ -117,6 +117,26 @@ const order = (xs: number[]) => xs.map((_, i) => i).sort((a, b) => xs[b] - xs[a]
 
 function noiseExhibits(rng: Rng, fb: FactBook, regions: string[], year: number, n: number): Exhibit[] {
   const builders: (() => Exhibit)[] = [
+    () => ({
+      id: 'nx-volunteer',
+      kind: 'bar',
+      title: `Volunteer hours logged, ${year - 1} vs ${year}`,
+      caption: 'Includes beach clean-ups and visitor-centre shifts.',
+      unit: 'hours',
+      xLabels: regions,
+      series: [
+        { name: `${year - 1}`, facts: regions.map((r) => fb.add(rng.int(12, 60) * 10, 'hours', r, 'volunteer hours', false, year - 1)) },
+        { name: `${year}`, facts: regions.map((r) => fb.add(rng.int(12, 60) * 10, 'hours', r, 'volunteer hours', false, year)) },
+      ],
+    }),
+    () => ({
+      id: 'nx-budget',
+      kind: 'table',
+      title: `Equipment budget by region, ${year}`,
+      caption: 'Budgets were set before this year’s survey began.',
+      columns: ['Region', 'Budget ($k)', 'Spent to date ($k)'],
+      rows: regions.map((r) => ({ label: r, cells: [fb.add(rng.int(20, 90), '$k', r, 'equipment budget', false, year), fb.add(rng.int(5, 60), '$k', r, 'equipment spent', false, year)] })),
+    }),
     () => {
       const months = ['May', 'Jun', 'Jul', 'Aug'];
       return {
@@ -429,7 +449,187 @@ function projection(rng: Rng, fb: FactBook, island: string, regions: string[], y
   };
 }
 
-const TEMPLATES: Record<TemplateId, typeof largestShare> = { largestShare, highestGrowth, lowestCost, projection };
+function ppChange(rng: Rng, fb: FactBook, island: string, regions: string[], year: number): Built {
+  const V = regions.map((r) => `${r} village`);
+  let r0: number[], r1: number[], pp: number[], rel: number[];
+  for (;;) {
+    r0 = V.map(() => rng.int(12, 55));
+    r1 = r0.map((x) => Math.max(5, x + rng.int(-6, 14)));
+    pp = r1.map((x, i) => x - r0[i]);
+    rel = r1.map((x, i) => pct(x - r0[i], r0[i]));
+    const o = order(pp);
+    if (argmax(pp) !== argmax(rel) && pp[o[0]] - pp[o[1]] >= 1 && pp.filter((x) => x < 0).length === 1 && new Set(pp).size === 3) break;
+  }
+  const rm2 = r0.map((x) => Math.max(5, x + rng.int(-5, 5)));
+  const lead = argmax(pp);
+  const o = order(pp);
+  const relLead = argmax(rel);
+  const decl = pp.findIndex((x) => x < 0);
+  const waste = V.map(() => rng.int(18, 60) * 10);
+  const fR2 = V.map((v, i) => fb.add(rm2[i], '%', v, 'recycling rate', i === lead, year - 2));
+  const fR0 = V.map((v, i) => fb.add(r0[i], '%', v, 'recycling rate', true, year - 1));
+  const fR1 = V.map((v, i) => fb.add(r1[i], '%', v, 'recycling rate', true, year));
+  const fW = V.map((v, i) => fb.add(waste[i], 'tonnes', v, 'household waste', i === lead, year));
+  const fH = V.map((v) => fb.add(rng.int(80, 400), 'households', v, 'households', false, year));
+  return {
+    objective: `Expand recycling outreach in the village whose recycling rate rose the most, in percentage points, from ${year - 1} to ${year}.`,
+    narrative: [
+      [`${island} runs a recycling scheme in three villages. The council wants to reward the village that improved most, and the team has been asked to say which one that is.`],
+      [`One councillor points out that ${V[relLead]} “improved by the biggest percentage”. Household numbers differ a lot between villages, and waste tonnage is reported separately.`],
+    ],
+    exhibits: [
+      { id: 'ex-rates', kind: 'table', title: 'Share of household waste recycled (%)', columns: ['Village', `${year - 2}`, `${year - 1}`, `${year}`], rows: V.map((v, i) => ({ label: v, cells: [fR2[i], fR0[i], fR1[i]] })) },
+      { id: 'ex-waste', kind: 'bar', title: `Household waste collected, ${year} (tonnes)`, unit: 'tonnes', xLabels: V, series: [{ name: `${year}`, facts: fW }] },
+      { id: 'ex-hh', kind: 'table', title: 'Households served', caption: 'A household count, not a rate.', columns: ['Village', 'Households'], rows: V.map((v, i) => ({ label: v, cells: [fH[i]] })) },
+      { id: 'ex-assume', kind: 'assumptions', title: 'Assumptions', items: [['Percentage-point change = this year’s rate − last year’s rate.'], ['Percent change = (this year’s rate − last year’s rate) ÷ last year’s rate × 100.'], ['Tonnes recycled = household waste × recycling rate.']] },
+    ],
+    questions: [
+      ...V.map((v, i) => ({ id: `q1${'abc'[i]}`, label: `1${'abc'[i]}`, prompt: `By how many percentage points did ${v}’s recycling rate change from ${year - 1} to ${year}?`, answer: round2(pp[i]), unit: 'pp' })),
+      { id: 'q2', label: '2', prompt: `For the village with the largest percentage-point rise, what was the percent change in its rate? ((new − old) ÷ old × 100)`, answer: rel[lead], unit: '%' },
+      { id: 'q3', label: '3', prompt: `How many tonnes did that village recycle in ${year}? (waste × rate)`, answer: round2((waste[lead] * r1[lead]) / 100), unit: 'tonnes' },
+    ],
+    report: {
+      segments: [
+        `From ${year - 1} to ${year}, `, { blank: 'b1' }, ` raised its recycling rate the most, by `, { blank: 'b2' }, ` percentage points, ahead of `, { blank: 'b3' }, `. In relative terms its rate rose `, { blank: 'b4' }, `, although `, { blank: 'b5' }, ` had the largest percent change from a lower base. The rate at `, { blank: 'b6' }, ` `, { blank: 'b7' }, `, by `, { blank: 'b8' }, ` points. The leading village recycled `, { blank: 'b9' }, ` of waste in ${year}. We recommend expanding outreach in `, { blank: 'b10' }, '.',
+      ],
+      blanks: [
+        { id: 'b1', kind: 'choice', options: V, correct: V[lead] },
+        { id: 'b2', kind: 'value', questionId: `q1${'abc'[lead]}` },
+        { id: 'b3', kind: 'choice', options: V, correct: V[o[1]] },
+        { id: 'b4', kind: 'value', questionId: 'q2' },
+        { id: 'b5', kind: 'choice', options: V, correct: V[relLead] },
+        { id: 'b6', kind: 'choice', options: V, correct: V[decl] },
+        { id: 'b7', kind: 'choice', options: ['rose', 'fell'], correct: 'fell' },
+        { id: 'b8', kind: 'value', questionId: `q1${'abc'[decl]}` },
+        { id: 'b9', kind: 'value', questionId: 'q3' },
+        { id: 'b10', kind: 'choice', options: V, correct: V[lead] },
+      ],
+    },
+    chart: { correct: 'line', title: `Recycling rate at ${V[lead]}, ${year - 2}–${year} (%)`, categories: [year - 2, year - 1, year].map(String), values: [rm2[lead], r0[lead], r1[lead]], unit: '%' },
+    requiredFacts: [...fR0, ...fR1, fW[lead], fR2[lead]],
+    trap: `${V[relLead]} had the biggest percent change because it started from a low base; ${V[lead]} gained the most percentage points. Households and other villages’ tonnage are noise.`,
+  };
+}
+
+function perPupil(rng: Rng, fb: FactBook, island: string, regions: string[], year: number): Built {
+  const Sch = regions.map((r) => `${r} school`);
+  let kwh: number[], pupils: number[], per: number[];
+  for (;;) {
+    kwh = Sch.map(() => rng.int(30, 140) * 1000);
+    pupils = Sch.map(() => rng.int(60, 420));
+    per = kwh.map((k, i) => round2(k / pupils[i]));
+    const o = order(per);
+    if (argmax(kwh) !== argmax(per) && per[o[0]] - per[o[1]] > 10 && per[o[1]] - per[o[2]] > 10) break;
+  }
+  const lead = argmax(per);
+  const low = argmin(per);
+  const totalLead = argmax(kwh);
+  const avg = round2(kwh.reduce((a, b) => a + b, 0) / pupils.reduce((a, b) => a + b, 0));
+  const second = order(per)[1];
+  const fK = Sch.map((s, i) => fb.add(kwh[i], 'kWh', s, 'grid electricity', true, year));
+  const fP = Sch.map((s, i) => fb.add(pupils[i], 'pupils', s, 'pupils enrolled', true, year));
+  const fKp = Sch.map((s) => fb.add(rng.int(30, 140) * 1000, 'kWh', s, 'grid electricity', false, year - 1));
+  const fA = Sch.map((s) => fb.add(rng.int(8, 40) * 100, 'm²', s, 'floor area', false, year));
+  const fT = Sch.map((s) => fb.add(rng.int(8, 35), 'staff', s, 'teaching staff', false, year));
+  return {
+    objective: `Install rooftop solar first at the school with the highest grid electricity use per pupil in ${year}.`,
+    narrative: [
+      [`${island}’s three schools draw power from an ageing diesel grid. The energy trust can fund one rooftop solar array this year.`],
+      [`${Sch[totalLead]} uses the most electricity overall, and the head teacher there has lobbied hard. The trust’s rule is clear: fund the school that uses the most per pupil. Floor areas and staff numbers were also sent over.`],
+    ],
+    exhibits: [
+      { id: 'ex-kwh', kind: 'bar', title: 'Grid electricity use (kWh)', unit: 'kWh', xLabels: Sch, series: [{ name: `${year - 1}`, facts: fKp }, { name: `${year}`, facts: fK }] },
+      { id: 'ex-pupils', kind: 'table', title: `School profile, ${year}`, columns: ['School', 'Pupils', 'Teaching staff', 'Floor area (m²)'], rows: Sch.map((s, i) => ({ label: s, cells: [fP[i], fT[i], fA[i]] })) },
+      { id: 'ex-assume', kind: 'assumptions', title: 'Assumptions', items: [['Use per pupil = annual grid electricity ÷ pupils enrolled.'], ['The island-wide figure is total electricity ÷ total pupils, not the average of the three schools’ figures.']] },
+    ],
+    questions: [
+      ...Sch.map((s, i) => ({ id: `q1${'abc'[i]}`, label: `1${'abc'[i]}`, prompt: `What was ${s}’s grid electricity use per pupil in ${year}? (kWh per pupil)`, answer: per[i], unit: 'kWh' })),
+      { id: 'q2', label: '2', prompt: 'What is the island-wide electricity use per pupil across all three schools? (total kWh ÷ total pupils)', answer: avg, unit: 'kWh' },
+      { id: 'q3', label: '3', prompt: 'By what percentage does the highest per-pupil figure exceed the island-wide figure? ((school − island) ÷ island × 100)', answer: pct(per[lead] - avg, avg), unit: '%' },
+    ],
+    report: {
+      segments: [
+        `In ${year}, `, { blank: 'b1' }, ` used the most grid electricity per pupil, at `, { blank: 'b2' }, `. Across all three schools the figure was `, { blank: 'b3' }, ` per pupil, so the leader sits `, { blank: 'b4' }, ` above it. `, { blank: 'b5' }, ` used the most electricity in total, but serves more pupils. `, { blank: 'b6' }, ` was most efficient at `, { blank: 'b7' }, ` per pupil, while `, { blank: 'b8' }, ` sat `, { blank: 'b9' }, ` the island-wide figure. We recommend installing solar first at `, { blank: 'b10' }, '.',
+      ],
+      blanks: [
+        { id: 'b1', kind: 'choice', options: Sch, correct: Sch[lead] },
+        { id: 'b2', kind: 'value', questionId: `q1${'abc'[lead]}` },
+        { id: 'b3', kind: 'value', questionId: 'q2' },
+        { id: 'b4', kind: 'value', questionId: 'q3' },
+        { id: 'b5', kind: 'choice', options: Sch, correct: Sch[totalLead] },
+        { id: 'b6', kind: 'choice', options: Sch, correct: Sch[low] },
+        { id: 'b7', kind: 'value', questionId: `q1${'abc'[low]}` },
+        { id: 'b8', kind: 'choice', options: Sch, correct: Sch[second] },
+        { id: 'b9', kind: 'choice', options: ['above', 'below'], correct: per[second] > avg ? 'above' : 'below' },
+        { id: 'b10', kind: 'choice', options: Sch, correct: Sch[lead] },
+      ],
+    },
+    chart: { correct: 'bar', title: `Grid electricity per pupil, ${year} (kWh)`, categories: Sch, values: per, unit: 'kWh' },
+    requiredFacts: [...fK, ...fP],
+    trap: `${Sch[totalLead]} uses the most electricity in total, but per pupil ${Sch[lead]} is highest. The island figure is a weighted average (total ÷ total), not the mean of three rates. Floor area, staff and ${year - 1} use are noise.`,
+  };
+}
+
+function payback(rng: Rng, fb: FactBook, island: string, regions: string[], year: number): Built {
+  const St = regions.map((r) => `${r} station`);
+  let cost: number[], fuel: number[], maint: number[], pb: number[];
+  for (;;) {
+    cost = St.map(() => rng.int(12, 60) * 5);
+    fuel = St.map(() => rng.int(8, 45));
+    maint = St.map(() => rng.int(2, 15));
+    pb = cost.map((c, i) => round2(c / (fuel[i] + maint[i])));
+    const o = order(pb.map((x) => -x));
+    if (argmin(cost) !== argmin(pb) && pb[o[1]] - pb[o[0]] > 0.3 && pb[o[2]] - pb[o[1]] > 0.3 && Math.max(...pb) < 30) break;
+  }
+  const lead = argmin(pb);
+  const o = order(pb.map((x) => -x));
+  const longest = o[2];
+  const cheap = argmin(cost);
+  const fC = St.map((s, i) => fb.add(cost[i], '$k', s, 'upfront cost', true, year));
+  const fF = St.map((s, i) => fb.add(fuel[i], '$k/yr', s, 'annual fuel saving', true));
+  const fM = St.map((s, i) => fb.add(maint[i], '$k/yr', s, 'annual maintenance saving', true));
+  const fAge = St.map((s) => fb.add(rng.int(4, 22), 'years', s, 'generator age', false, year));
+  const fRun = St.map((s) => fb.add(rng.int(6, 24), 'hours/day', s, 'generator run time', false, year));
+  return {
+    objective: `Replace the diesel generator first at the station with the shortest payback period.`,
+    narrative: [
+      [`Three research stations on ${island} run on diesel generators. A grant will replace one with solar and batteries this year.`],
+      [`${St[cheap]} has the cheapest installation quote, which makes it the finance team’s favourite. The engineers have also listed each generator’s age and daily run time.`],
+    ],
+    exhibits: [
+      { id: 'ex-cost', kind: 'bar', title: 'Installation quote ($ thousands)', unit: '$k', xLabels: St, series: [{ name: 'Upfront cost', facts: fC }] },
+      { id: 'ex-save', kind: 'table', title: 'Expected annual savings after replacement ($ thousands per year)', columns: ['Station', 'Fuel', 'Maintenance'], rows: St.map((s, i) => ({ label: s, cells: [fF[i], fM[i]] })) },
+      { id: 'ex-gen', kind: 'table', title: 'Current generators', columns: ['Station', 'Age (years)', 'Run time (hours/day)'], rows: St.map((s, i) => ({ label: s, cells: [fAge[i], fRun[i]] })) },
+      { id: 'ex-assume', kind: 'assumptions', title: 'Assumptions', items: [['Total annual saving = fuel saving + maintenance saving.'], ['Payback period (years) = upfront cost ÷ total annual saving.'], ['Ignore financing costs and inflation.']] },
+    ],
+    questions: [
+      ...St.map((s, i) => ({ id: `q1${'abc'[i]}`, label: `1${'abc'[i]}`, prompt: `What is the payback period for ${s}? (years)`, answer: pb[i], unit: 'years' })),
+      { id: 'q2', label: '2', prompt: 'How many years shorter is the shortest payback than the second shortest?', answer: round2(pb[o[1]] - pb[o[0]]), unit: 'years' },
+      { id: 'q3', label: '3', prompt: 'What is the combined total annual saving if all three stations were replaced? ($ thousands per year)', answer: round2(fuel.reduce((a, b) => a + b, 0) + maint.reduce((a, b) => a + b, 0)), unit: '$k' },
+    ],
+    report: {
+      segments: [
+        ``, { blank: 'b1' }, ` pays back fastest, in `, { blank: 'b2' }, ` years — `, { blank: 'b3' }, ` years sooner than `, { blank: 'b4' }, `. `, { blank: 'b5' }, ` has the cheapest quote, but its savings are smaller. The slowest to pay back is `, { blank: 'b6' }, `, at `, { blank: 'b7' }, ` years. Replacing all three would save `, { blank: 'b8' }, ` a year. We recommend starting with `, { blank: 'b9' }, '.',
+      ],
+      blanks: [
+        { id: 'b1', kind: 'choice', options: St, correct: St[lead] },
+        { id: 'b2', kind: 'value', questionId: `q1${'abc'[lead]}` },
+        { id: 'b3', kind: 'value', questionId: 'q2' },
+        { id: 'b4', kind: 'choice', options: St, correct: St[o[1]] },
+        { id: 'b5', kind: 'choice', options: St, correct: St[cheap] },
+        { id: 'b6', kind: 'choice', options: St, correct: St[longest] },
+        { id: 'b7', kind: 'value', questionId: `q1${'abc'[longest]}` },
+        { id: 'b8', kind: 'value', questionId: 'q3' },
+        { id: 'b9', kind: 'choice', options: St, correct: St[lead] },
+      ],
+    },
+    chart: { correct: 'bar', title: 'Payback period by station (years)', categories: St, values: pb, unit: 'years' },
+    requiredFacts: [...fC, ...fF, ...fM],
+    trap: `${St[cheap]} is cheapest to install, but payback depends on savings too. Generator age and run time are noise — they’re already reflected in the savings estimates.`,
+  };
+}
+
+const TEMPLATES: Record<TemplateId, typeof largestShare> = { largestShare, highestGrowth, lowestCost, projection, ppChange, perPupil, payback };
 
 export function generateStudy(seed: string, template?: TemplateId): Study {
   const rng = makeRng(`${seed}::redrock`);
@@ -650,15 +850,191 @@ const CASES: Record<CaseType, CaseBuilder[]> = {
   ],
 };
 
+const EXTRA_CASES: Record<CaseType, CaseBuilder[]> = {
+  word: [
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const a = rng.int(18, 40);
+      const b = a + rng.int(4, 15);
+      const fa = fb.add(a, '%', 'Island grid', 'renewable share last year', true);
+      const fbb = fb.add(b, '%', 'Island grid', 'renewable share this year', true);
+      fb.add(rng.int(40, 90), 'GWh', 'Island grid', 'total demand', false);
+      return {
+        id, type: 'word', title: 'Renewable share', facts: fb.facts, kind: 'numeric', unit: '%',
+        text: [[`The renewable share of the island grid rose from `, { fact: fa }, ` to `, { fact: fbb }, `. A press release says renewables “grew by ${b - a}%”.`]],
+        question: 'By what percent did the renewable share actually grow? (%, 2 dp)',
+        answer: round2(((b - a) / a) * 100),
+        explanation: `The rise is ${b - a} percentage points, which is a ${round2(((b - a) / a) * 100)}% increase: percent change = (new − old) ÷ old × 100.`,
+      };
+    },
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const n1 = rng.int(20, 80) * 10;
+      const n2 = rng.int(5, 30) * 10;
+      const c1 = round2(rng.float(1.2, 3.5));
+      const c2 = round2(rng.float(3.6, 7.5));
+      const f1 = fb.add(n1, 'seedlings', 'Nursery A', 'seedlings grown', true);
+      const f2 = fb.add(n2, 'seedlings', 'Nursery B', 'seedlings grown', true);
+      const g1 = fb.add(c1, '$', 'Nursery A', 'cost per seedling', true);
+      const g2 = fb.add(c2, '$', 'Nursery B', 'cost per seedling', true);
+      return {
+        id, type: 'word', title: 'Blended seedling cost', facts: fb.facts, kind: 'numeric', unit: '$',
+        text: [[`Nursery A grew `, { fact: f1 }, ` at `, { fact: g1 }, ` each. Nursery B grew `, { fact: f2 }, ` at `, { fact: g2 }, ` each.`]],
+        question: 'What was the average cost per seedling across both nurseries? ($, 2 dp)',
+        answer: round2((n1 * c1 + n2 * c2) / (n1 + n2)),
+        explanation: 'Weight by volume: (n₁×c₁ + n₂×c₂) ÷ (n₁ + n₂). The simple mean of the two prices is the trap.',
+      };
+    },
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const cost = rng.int(20, 80) * 1000;
+      const save = rng.int(3, 12) * 1000;
+      const fc = fb.add(cost, '$', 'Heat pump', 'installation cost', true);
+      const fs = fb.add(save, '$/yr', 'Heat pump', 'annual energy saving', true);
+      fb.add(rng.int(12, 25), 'years', 'Heat pump', 'expected lifetime', false);
+      return {
+        id, type: 'word', title: 'Heat pump payback', facts: fb.facts, kind: 'numeric', unit: 'years',
+        text: [[`A visitor centre can install a heat pump for `, { fact: fc }, `, saving `, { fact: fs }, ` on energy.`]],
+        question: 'How many years until the heat pump pays for itself? (2 dp)',
+        answer: round2(cost / save),
+        explanation: 'Payback = upfront cost ÷ annual saving. The lifetime only tells you whether it pays back at all.',
+      };
+    },
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const lps = rng.int(4, 25);
+      const hours = rng.int(4, 12);
+      const fl = fb.add(lps, 'litres/second', 'Spring', 'flow rate', true);
+      const fh = fb.add(hours, 'hours/day', 'Pump', 'operating time', true);
+      return {
+        id, type: 'word', title: 'Spring water', facts: fb.facts, kind: 'numeric', unit: 'm³',
+        text: [[`A spring flows at `, { fact: fl }, `. The pump runs `, { fact: fh }, `. 1 m³ = 1,000 litres.`]],
+        question: 'How many cubic metres are pumped per day? (2 dp)',
+        answer: round2((lps * hours * 3600) / 1000),
+        explanation: 'litres/second × 3,600 seconds/hour × hours ÷ 1,000 litres per m³.',
+      };
+    },
+  ],
+  formula: [
+    (rng, id) => {
+      const opts = ['C ÷ (F + M)', '(C ÷ F) + M', 'C × (F + M)', '(F + M) ÷ C'];
+      return {
+        id, type: 'formula', title: 'Payback period', facts: {}, kind: 'choice', options: rng.shuffle(opts), answer: opts[0],
+        text: [['A solar array costs C up front and saves F on fuel and M on maintenance each year.']],
+        question: 'Which formula gives the payback period in years?',
+        explanation: 'Payback = upfront cost ÷ total annual saving.',
+      };
+    },
+    (rng, id) => {
+      const opts = ['(P₂ − P₁) ÷ P₁ × 100', '(P₂ − P₁) ÷ P₂ × 100', 'P₂ ÷ P₁ × 100', '(P₂ + P₁) ÷ 2'];
+      return {
+        id, type: 'formula', title: 'Population change', facts: {}, kind: 'choice', options: rng.shuffle(opts), answer: opts[0],
+        text: [['A seal colony numbered P₁ last year and P₂ this year.']],
+        question: 'Which formula gives this year’s percentage change?',
+        explanation: 'Percent change is measured against the starting value, P₁.',
+      };
+    },
+  ],
+  verbal: [
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const names = ['North reef', 'East reef', 'South reef'];
+      const area = names.map(() => rng.int(10, 60));
+      const fish = area.map((a) => a * rng.int(3, 6) + rng.int(0, 20));
+      const exhibit: Exhibit = {
+        id: `${id}-ex`, kind: 'table', title: 'Reef survey', columns: ['Reef', 'Area (ha)', 'Fish species'],
+        rows: names.map((n, i) => ({ label: n, cells: [fb.add(area[i], 'ha', n, 'area', true), fb.add(fish[i], 'species', n, 'fish species', true)] })),
+      };
+      return {
+        id, type: 'verbal', title: 'Reef size', facts: fb.facts, exhibit, kind: 'choice', options: ['True', 'False', 'Cannot tell'], answer: 'Cannot tell',
+        text: [['A survey compared three reefs.']],
+        question: '“Protecting more reef area causes more fish species to settle.”',
+        explanation: 'Three data points can suggest a relationship, but nothing here shows cause. Cannot tell.',
+      };
+    },
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const tot = rng.int(400, 900);
+      const part = rng.int(100, Math.floor(tot / 2));
+      const ft = fb.add(tot, 'tonnes', 'Harbour', 'waste collected', true);
+      const fp = fb.add(part, 'tonnes', 'Harbour', 'plastic collected', true);
+      const claim = rng.chance(0.5);
+      const share = (100 * part) / tot;
+      const stated = claim ? Math.floor(share) - 1 : Math.ceil(share) + 2;
+      return {
+        id, type: 'verbal', title: 'Plastic share', facts: fb.facts, kind: 'choice', options: ['True', 'False', 'Cannot tell'], answer: claim ? 'True' : 'False',
+        text: [[`The harbour clean-up collected `, { fact: ft }, ` of waste, of which `, { fact: fp }, ` was plastic.`]],
+        question: `“More than ${stated}% of the waste collected was plastic.”`,
+        explanation: `Plastic was ${round2(share)}% of the total.`,
+      };
+    },
+  ],
+  visual: [
+    (rng, id) => {
+      const items: [string, ChartType][] = [
+        ['how the island’s energy mix (diesel, solar, wind) changed as shares over five years', 'stacked'],
+        ['the cumulative effect of four measures that took emissions from last year’s level to this year’s', 'waterfall'],
+        ['whether villages with more volunteers recycle a higher share of waste', 'scatter'],
+        ['visitor numbers each month for the last two years', 'line'],
+      ];
+      const [msg, ans] = rng.pick(items);
+      const label = (c: ChartType) => CHART_TYPES.find((x) => x.id === c)!.label;
+      const opts = rng.shuffle(['line', 'bar', 'stacked', 'pie', 'scatter', 'waterfall'] as ChartType[]).slice(0, 4);
+      if (!opts.includes(ans)) opts[rng.int(0, 3)] = ans;
+      return {
+        id, type: 'visual', title: 'Choosing a chart', facts: {}, kind: 'choice', options: opts.map(label), answer: label(ans),
+        text: [[`A report needs one chart to show ${msg}.`]],
+        question: 'Which chart type communicates this message best?',
+        explanation: 'Shares changing over time → 100% stacked bars; a bridge between two totals → waterfall; relationship → scatter; trend → line.',
+      };
+    },
+  ],
+  probability: [
+    (rng, id) => {
+      const p = rng.int(10, 40);
+      const n = rng.int(2, 4);
+      return {
+        id, type: 'probability', title: 'Rain days', facts: {}, kind: 'numeric', unit: '%',
+        text: [[`Each survey day has a ${p}% chance of rain, independently. The team has ${n} survey days booked.`]],
+        question: 'What is the probability that it rains on at least one of them? (%, 2 dp)',
+        answer: round2((1 - Math.pow(1 - p / 100, n)) * 100),
+        explanation: 'At least one = 1 − P(none) = 1 − (1 − p)ⁿ.',
+      };
+    },
+    (rng, id) => {
+      const fb = new FactBook(`${id}f`);
+      const tagged = rng.int(20, 60);
+      const total = tagged + rng.int(40, 140);
+      const ft = fb.add(tagged, 'birds', 'Colony', 'birds ringed', true);
+      const fn = fb.add(total, 'birds', 'Colony', 'birds in colony', true);
+      return {
+        id, type: 'probability', title: 'Ringed birds', facts: fb.facts, kind: 'numeric', unit: '%',
+        text: [[`A colony has `, { fact: fn }, `, of which `, { fact: ft }, `. Two birds are caught at random, without replacement.`]],
+        question: 'What is the probability that exactly one of them is ringed? (%, 2 dp)',
+        answer: round2(((2 * tagged * (total - tagged)) / (total * (total - 1))) * 100),
+        explanation: 'Exactly one = 2 × (r/N) × ((N − r)/(N − 1)) — ringed-then-not or not-then-ringed.',
+      };
+    },
+  ],
+};
+
+const ALL_CASES: Record<CaseType, CaseBuilder[]> = Object.fromEntries(
+  (Object.keys(CASES) as CaseType[]).map((t) => [t, [...CASES[t], ...EXTRA_CASES[t]]]),
+) as Record<CaseType, CaseBuilder[]>;
+
+/** Six cases, a random mix each run: at least four different types, no template twice. */
 export function generateCases(seed: string): Case[] {
   const rng = makeRng(`${seed}::redrock-cases`);
-  const types: CaseType[] = ['word', 'formula', 'verbal', 'visual', rng.pick(['word', 'probability', 'formula'] as CaseType[]), rng.pick(['word', 'verbal', 'probability'] as CaseType[])];
+  const all = Object.keys(ALL_CASES) as CaseType[];
+  let types: CaseType[];
+  do types = Array.from({ length: CONFIG.redRock.cases }, () => rng.pick(all));
+  while (new Set(types).size < 4);
   const used = new Map<CaseType, number[]>();
-  return rng.shuffle(types).map((t, i) => {
-    const pool = CASES[t].map((_, k) => k).filter((k) => !(used.get(t) ?? []).includes(k));
-    const k = pool.length ? rng.pick(pool) : rng.int(0, CASES[t].length - 1);
+  return types.map((t, i) => {
+    const pool = ALL_CASES[t].map((_, k) => k).filter((k) => !(used.get(t) ?? []).includes(k));
+    const k = pool.length ? rng.pick(pool) : rng.int(0, ALL_CASES[t].length - 1);
     used.set(t, [...(used.get(t) ?? []), k]);
-    return CASES[t][k](rng, `c${i}`);
+    return ALL_CASES[t][k](rng, `c${i}`);
   });
 }
 

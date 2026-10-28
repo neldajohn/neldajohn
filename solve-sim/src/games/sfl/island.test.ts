@@ -52,7 +52,7 @@ describe('Sustainable Futures Lab generator', () => {
     }
   });
 
-  it('support problems: 3 per day, distinct deadlines, one middle-path option each', () => {
+  it('support problems: 3 per day, distinct urgency, one middle-path option each, no repeats in a game', () => {
     for (const seed of seeds) {
       const sc = generateIsland(seed);
       sc.problems.forEach((ps) => {
@@ -62,9 +62,14 @@ describe('Sustainable Futures Lab generator', () => {
         ps.forEach((p) => {
           expect(p.options).toHaveLength(4);
           expect(p.options.filter((o) => o.archetype === 'middle')).toHaveLength(1);
-          expect(p.text).not.toMatch(/\{[SOD]\}/);
+          expect(p.text).not.toMatch(/\{[SOU]\}/);
+          p.options.forEach((o) => expect(o.text).not.toMatch(/\{[SOU]\}/));
+          // Urgency is buried in the wording, never labelled.
+          expect(p.text).toContain(p.deadline);
         });
       });
+      const texts = sc.problems.flat().map((p) => p.options.find((o) => o.archetype === 'middle')!.text.slice(0, 40));
+      expect(new Set(texts).size).toBe(texts.length);
     }
   });
 });

@@ -686,7 +686,7 @@ function SupportDrill({ seed, onGraded }: ItemProps) {
   return (
     <div className="max-w-3xl">
       <DayHeader day={it.day} />
-      <Panel title={`${who.name} · due ${it.problem.deadline}`}>
+      <Panel title={who.name}>
         <p className="mb-4 text-sm">“{it.problem.text}”</p>
         <Choices
           options={it.problem.options.map((o) => o.text)}
@@ -724,7 +724,7 @@ function OrderDrill({ seed, onGraded }: ItemProps) {
   return (
     <div className="max-w-3xl">
       <DayHeader day={it.day} />
-      <Panel title="These arrive at once — order them">
+      <Panel title="These arrive at once — which is most urgent?">
         <ol className="space-y-2">
           {order.map((id, i) => {
             const p = byId(id);
@@ -758,8 +758,8 @@ function OrderDrill({ seed, onGraded }: ItemProps) {
         </div>
         {done && (
           <Feedback correct={ok}>
-            <p>Deadline order: {it.ideal.map((id) => `${first(R[byId(id).from].name)} (${byId(id).deadline})`).join(' → ')}.</p>
-            <p className="text-slate-500">What is due soonest goes first; what can wait, waits. The deadline is in each message — read for it.</p>
+            <p>Most urgent first: {it.ideal.map((id) => `${first(R[byId(id).from].name)} (“${byId(id).deadline}”)`).join(' → ')}.</p>
+            <p className="text-slate-500">Nobody labels the deadline: listen for the time cue — within the hour, later today, or sometime this week.</p>
           </Feedback>
         )}
       </Panel>

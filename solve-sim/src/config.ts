@@ -41,8 +41,9 @@ export const CONFIG = {
     /** Suggested split of the 35-min clock. */
     studyBudgetSec: 23 * 60,
     answerTolerance: 0.011,
-    noiseExhibitsMin: 2,
-    noiseExhibitsMax: 3,
+    /** Hard: always several noise exhibits. */
+    noiseExhibitsMin: 3,
+    noiseExhibitsMax: 4,
   },
 
   seaWolf: {

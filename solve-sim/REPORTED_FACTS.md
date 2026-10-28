@@ -26,7 +26,8 @@ Legend: **R** = candidate-reported (prep-provider write-ups, Oct 2026) · **G** 
 | Report: 8–10 blanks, graph type locked once chosen, visual report values | R |
 | Cases: word problem / formula / verbal (T/F/can't tell) / visualisation / probability, ~2 min each, sequential | R |
 | Tolerance of ±0.011 on numeric answers | G |
-| Study template set (largest share, growth, cost per unit, projection) | G (modelled on reported question types) |
+| Study template set (largest share, growth, cost per unit, projection, percentage points vs percent change, per-pupil vs weighted average, payback) | G (modelled on reported question types) |
+| 3–4 noise exhibits per study; six cases drawn as a random mix of at least four types | G (hard mode) |
 | Suggested 23-min Study / 12-min Cases split | G |
 
 ## Sea Wolf
@@ -62,6 +63,8 @@ Sources: prep-guide summaries (e.g. a CasePracticeFree guide updated Oct 2026, c
 | Reflect: how each person ended the day, with "I don't know" | R |
 | Best support answers are the middle path that lets the person own it; weak ones postpone, force, give in, take over or lose focus | R (guides' advice, not confirmed scoring) |
 | Learning mode with a review after each stage | R (mirrors a prep simulator's learning mode) |
+| Support deadlines are never labelled; urgency is read from wording (within the hour / later today / this week) | G (harder than reports describe, by request) |
+| 12 consultant-style dilemmas with two-sentence options; weak options disguised as rigour, decisiveness, harmony, support or ambition | G |
 | Reason menu wording, question wording, 3-point Struggling/Okay/Thriving scale | G |
 | States move with events (moved to where they contribute most +1, moved away −1, middle-path support +1, postpone/force/take over −1) | G |
 | Reflect credit = matches the latest state you observed that day; no observation → "I don't know" | G |

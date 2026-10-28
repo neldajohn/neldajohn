@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkNumeric, generateCases, generateStudy, workedExample, type Fact, type Study, type TemplateId } from './model';
 
-const TEMPLATES: TemplateId[] = ['largestShare', 'highestGrowth', 'lowestCost', 'projection'];
+const TEMPLATES: TemplateId[] = ['largestShare', 'highestGrowth', 'lowestCost', 'projection', 'ppChange', 'perPupil', 'payback'];
 const seeds = Array.from({ length: 25 }, (_, i) => `rr-${i}`);
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -30,6 +30,14 @@ function solveQ1(study: Study): number[] {
       return ents.map((e) => r2(val(fs, e, 'programme cost') / ((val(fs, e, 'hectares planted') * val(fs, e, 'survival rate')) / 100)));
     case 'projection':
       return ents.map((e) => r2(val(fs, e, 'live coral cover') * Math.pow(1 + val(fs, e, 'annual change in coral cover') / 100, 3)));
+    case 'ppChange': {
+      const villages = [...new Set(fs.filter((f) => f.metric === 'recycling rate').map((f) => f.entity))];
+      return villages.map((e) => r2(val(fs, e, 'recycling rate', year) - val(fs, e, 'recycling rate', year - 1)));
+    }
+    case 'perPupil':
+      return ents.map((e) => r2(val(fs, e, 'grid electricity', year) / val(fs, e, 'pupils enrolled', year)));
+    case 'payback':
+      return ents.map((e) => r2(val(fs, e, 'upfront cost') / (val(fs, e, 'annual fuel saving') + val(fs, e, 'annual maintenance saving'))));
   }
 }
 
@@ -83,12 +91,11 @@ describe('Red Rock study generator', () => {
 });
 
 describe('Red Rock cases', () => {
-  it('produces six cases covering the four core types', () => {
+  it('produces six cases mixing at least four types', () => {
     for (const seed of seeds) {
       const cs = generateCases(seed);
       expect(cs).toHaveLength(6);
-      const types = new Set(cs.map((c) => c.type));
-      ['word', 'formula', 'verbal', 'visual'].forEach((t) => expect(types.has(t as never)).toBe(true));
+      expect(new Set(cs.map((c) => c.type)).size).toBeGreaterThanOrEqual(4);
       cs.forEach((c) => {
         if (c.kind === 'choice') expect(c.options).toContain(c.answer);
         else expect(Number.isFinite(c.answer as number)).toBe(true);

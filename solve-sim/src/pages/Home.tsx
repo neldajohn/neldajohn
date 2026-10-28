@@ -71,7 +71,7 @@ export function Home() {
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={settings.seaWolfHard} onChange={(e) => updateSettings({ seaWolfHard: e.target.checked })} />
-              Sea Wolf hard mode (narrow ranges, scarce desired trait, decoys — always solvable)
+              Sea Wolf hard mode in single-game practice (full sittings are always hard)
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={settings.sflLearning} onChange={(e) => updateSettings({ sflLearning: e.target.checked })} />

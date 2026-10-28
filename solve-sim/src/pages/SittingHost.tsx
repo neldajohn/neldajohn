@@ -36,7 +36,7 @@ export function SittingHost() {
     case 'redrock':
       return <RedRock key={key} seed={seed} />;
     case 'seawolf':
-      return <SeaWolf key={key} seed={seed} variant={sitting.settings.seaWolfMode} hard={sitting.settings.seaWolfHard ?? false} />;
+      return <SeaWolf key={key} seed={seed} variant={sitting.settings.seaWolfMode} hard={sitting.mode !== 'single' || (sitting.settings.seaWolfHard ?? true)} />;
     case 'sflIsland':
       // Learning mode only in single-game practice; a full sitting is always test mode.
       return <Island key={key} seed={seed} learning={sitting.mode === 'single' && (sitting.settings.sflLearning ?? false)} />;

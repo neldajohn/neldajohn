@@ -22,7 +22,7 @@ export const ISLAND_TUTORIAL: TutorialCard[] = [
   {
     title: 'Support, then Reflect',
     body: [
-      'Support: several problems arrive at once. Choose the order — deadlines first — then respond to each. Options are full paragraphs; read every consequence.',
+      'Support: several problems arrive at once. Nobody labels the deadlines — work out from the wording which is most urgent, then respond to each. Options are full paragraphs; read every consequence.',
       'Reflect: say how each person ended the day: struggling, okay or thriving. Answer from what you saw. “I don’t know” is valid.',
     ],
   },

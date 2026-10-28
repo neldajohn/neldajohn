@@ -126,8 +126,8 @@ export function scoreIsland(sc: IslandScenario, opening: string[] | null, days: 
     const probs = sc.problems[d];
     const ideal = [...probs].sort((a, b) => a.deadlineRank - b.deadlineRank);
     if (rec.order.length && rec.order.join() !== ideal.map((p) => p.id).join()) {
-      supportIssues.push(`${D(d)}: handled problems out of deadline order`);
-      orderFix.push(`${D(d)}: ${ideal.map((p) => `${first(R[p.from].name)} (${p.deadline})`).join(' → ')}`);
+      supportIssues.push(`${D(d)}: handled problems out of urgency order`);
+      orderFix.push(`${D(d)}: ${ideal.map((p) => `${first(R[p.from].name)} (“${p.deadline}”)`).join(' → ')}`);
     }
     probs.forEach((p) => {
       const a = rec.choices[p.id];
@@ -160,7 +160,7 @@ export function scoreIsland(sc: IslandScenario, opening: string[] | null, days: 
       `${bestText.length ? `Best placements: ${listSome(bestText, 3)}. ` : ''}Only move someone when your notes back the reason; otherwise leave them where they are.`),
     line('product', 0.25, 'Support', avg('support'),
       supportIssues.length ? listSome(supportIssues, 4) : 'Middle-path answers, in deadline order, every day.',
-      `${orderFix.length ? `Deadline order: ${listSome(orderFix, 3)}. ` : ''}${pattern.drift ? DRIFT_FIX[pattern.drift] + ' ' : ''}Pick the reply that moves forward with what you have, leaves room to correct, and lets the person own it.`),
+      `${orderFix.length ? `Urgency order: ${listSome(orderFix, 3)}. Listen for the time cue in each message. ` : ''}${pattern.drift ? DRIFT_FIX[pattern.drift] + ' ' : ''}Pick the reply that moves forward with what you have, leaves room to correct, and lets the person own it.`),
     line('product', 0.2, 'Reflect', avg('reflect'),
       reflectIssues.length ? listSome(reflectIssues, 4) : 'Every rating matched what you had seen.',
       'Rate from the latest thing you saw today — the support consequence beats the assignment reaction, which beats the morning answer. No observation today means “I don’t know”.'),

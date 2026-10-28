@@ -37,7 +37,7 @@ const STAGES: Stage[] = ['explore', 'assign', 'support', 'reflect'];
 const STAGE_HELP: Record<Stage, string> = {
   explore: 'Spend all of today’s requests. Each person or station offers two questions; each answers one question a day.',
   assign: 'Move people only when you have a reason your notes back up. A station can be empty or hold two. Placements carry over to tomorrow.',
-  support: 'Several problems have arrived. Choose the order (deadlines first), then respond to each. Read every consequence.',
+  support: 'Several problems have arrived. Work out from what each person says which is most urgent, order them, then respond. Read every consequence.',
   reflect: 'Say how each person ended the day, from what you saw. “I don’t know” is valid when you saw nothing.',
 };
 
@@ -373,7 +373,7 @@ export function Island({ seed, learning }: { seed: string; learning: boolean }) 
                 `Day ${day + 1} · Explore review`,
                 [
                   `Today’s goal: ${GOAL_TEXT[goal]}. Most useful: ${goal === 'people' ? 'where people contribute most, and how they are doing' : goal === 'stations' ? 'what stations need and what could go wrong' : 'a mix — people’s strengths and stations’ needs'}.`,
-                  ...todayBuys.map((b) => `${rel.includes(b.kind) || b.kind === 'mood' ? '✓' : '✗'} ${nameOf(b.target)}: “${questionText(b.kind)}”`),
+                  ...todayBuys.map((b) => `${rel.includes(b.kind) || b.kind === 'mood' ? '✓' : '✗'} ${nameOf(b.target)}: “${questionText(b.kind, `${b.target}-${day}`)}”`),
                   ...(todayBuys.some((b) => b.kind === 'mood') ? [] : ['You didn’t ask anyone how they were doing — Reflect will be guesswork.']),
                 ],
                 () => setStage('assign'),
@@ -408,7 +408,7 @@ export function Island({ seed, learning }: { seed: string; learning: boolean }) 
       )}
 
       {stage === 'support' && !orderLocked && (
-        <Panel title="Problems arriving now — choose the order to handle them">
+        <Panel title="Problems arriving now — which is most urgent?">
           <ol className="space-y-2">
             {order.map((id, i) => {
               const p = probs.find((x) => x.id === id)!;
@@ -417,7 +417,7 @@ export function Island({ seed, learning }: { seed: string; learning: boolean }) 
                   <span className="w-5 font-mono text-slate-400">{i + 1}</span>
                   <div className="flex-1">
                     <div className="font-semibold">
-                      {R[p.from].name} <span className="font-normal text-slate-500">· due {p.deadline}</span>
+                      {R[p.from].name}
                     </div>
                     <div className="text-slate-600">{p.text}</div>
                   </div>
@@ -445,7 +445,7 @@ export function Island({ seed, learning }: { seed: string; learning: boolean }) 
       )}
 
       {stage === 'support' && orderLocked && currentProblem && !consequence && (
-        <Panel title={`Problem ${Object.keys(choices).length + 1} of ${probs.length} · due ${currentProblem.deadline}`}>
+        <Panel title={`Problem ${Object.keys(choices).length + 1} of ${probs.length}`}>
           <div className="mb-1 text-sm font-semibold">{R[currentProblem.from].name}</div>
           <p className="mb-4 text-sm">“{currentProblem.text}”</p>
           <div className="space-y-2">
@@ -476,7 +476,7 @@ export function Island({ seed, learning }: { seed: string; learning: boolean }) 
                   review(
                     `Day ${day + 1} · Support review`,
                     [
-                      `Deadline order: ${ideal.map((p) => `${first(R[p.from].name)} (${p.deadline})`).join(' → ')}. ${order.join() === ideal.map((p) => p.id).join() ? '✓ You matched it.' : '✗ Yours differed.'}`,
+                      `Most urgent first: ${ideal.map((p) => `${first(R[p.from].name)} (“${p.deadline}”)`).join(' → ')}. ${order.join() === ideal.map((p) => p.id).join() ? '✓ You matched it.' : '✗ Yours differed.'}`,
                       ...probs.map((p) => {
                         const best = p.options.find((o) => o.archetype === 'middle')!;
                         const mine = choices[p.id];
@@ -652,7 +652,7 @@ function ExploreMenu({ sc, id, day, askedToday, noRequests, onAsk, onCancel }: {
       <div className="space-y-2">
         {kinds.map((k) => (
           <button key={k} disabled={!!blocked} onClick={() => onAsk(k)} className="block w-full rounded border border-slate-200 px-3 py-2 text-left text-sm hover:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
-            {questionText(k)}
+            {questionText(k, `${id}-${day}`)}
             <span className="ml-2 text-xs text-slate-400">{k === 'strength' || k === 'mood' ? 'about the person' : 'about the work'}</span>
           </button>
         ))}

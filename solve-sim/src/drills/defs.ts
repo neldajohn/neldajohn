@@ -77,7 +77,7 @@ export const DRILLS: DrillMeta[] = [
   { id: 'sfl-explore', game: 'Sustainable Futures Lab', title: 'Explore: what to ask', blurb: 'Spend a request on what today’s goal needs — and spot the wasted questions.' },
   { id: 'sfl-reasons', game: 'Sustainable Futures Lab', title: 'Assignment reasons', blurb: 'Which reason do your notes actually back up?' },
   { id: 'sfl-support', game: 'Sustainable Futures Lab', title: 'Support replies', blurb: 'Find the middle path; learn to spot postpone, force, give in and take over.' },
-  { id: 'sfl-order', game: 'Sustainable Futures Lab', title: 'Support order', blurb: 'Three problems arrive at once: handle them by deadline.' },
+  { id: 'sfl-order', game: 'Sustainable Futures Lab', title: 'Support order', blurb: 'Three problems arrive at once: read the urgency from the wording.' },
   { id: 'sfl-reflect', game: 'Sustainable Futures Lab', title: 'Reflect ratings', blurb: 'Rate from the latest thing you saw — or say “I don’t know”.' },
 ];
 
@@ -250,7 +250,7 @@ export interface ExploreItem {
 }
 
 const nameOfId = (sc: IslandScenario, id: string) => sc.researchers.find((r) => r.id === id)?.name ?? sc.stations.find((s) => s.id === id)?.name ?? id;
-const ask = (sc: IslandScenario, id: string, kind: QuestionKind) => `Ask ${nameOfId(sc, id)}: “${questionText(kind)}”`;
+const ask = (sc: IslandScenario, id: string, kind: QuestionKind) => `Ask ${nameOfId(sc, id)}: “${questionText(kind, `${id}-${kind}`)}”`;
 
 /** One genuinely useful question among three traps: already asked today, out in the field, or already known / off-goal. */
 export function makeExploreItem(seed: string): ExploreItem {
